@@ -1,0 +1,47 @@
+# AI Pairing Context: distributed-lottery-analyzer
+
+## Project Overview
+A highly parallelized, distributed application designed to run on top of the custom `distributed-compute-operator` which has already been created at https://github.com/Rosalita/distributed-compute-operator
+
+This project has one main goal using the complete historical datasets (including prize breakdowns) for major UK National Lottery games (Lotto, Euromillions, Thunderball, and Set For Life):
+1. **Most Profitable Line Finder:** Distribute the total possible combination space across worker pods to brute-force evaluate every single possible ticket against all historical draws, finding the specific line for each game that would have paid out the most total money over all time.
+
+
+## Architecture (Tightly-Coupled Distributed Workload)
+This application is packaged as a single Docker container but uses its networking hostname to determine its role at runtime.
+
+### The Leader Pod (`<job-name>-leader`)
+- **Data Manager:** Loads the historical datasets (winning numbers and prize values per tier) for all lottery games into memory on startup.
+- **Global Observer & Dispatcher:** Assigns chunks of the total combination space (e.g., lines starting with 1, lines starting with 2) to connecting workers. Runs a gRPC/TCP server to receive and aggregate the highest-earning lines found by the workers.
+
+### The Worker Pods (`<job-name>-worker-X`)
+- **Combination Chunk Processing:** Each worker pod receives a specific subset of the millions of possible ticket combinations from the leader.
+- **Historical Evaluation:** Workers rapidly simulate playing their assigned combinations across every historical draw, calculating the total monetary payout for each line based on historical prize tiers.
+- **Result Reporting:** Once a worker finishes evaluating its chunk, it sends the top-earning lines and their total historical profit back to the leader over predictable Headless Service DNS.
+
+## Progress So Far
+- Project conceptualized.
+- Infrastructure (Custom Kubernetes Operator) is complete and tested in the `distributed-compute-operator` repository.
+- Go module initialized (`github.com/Rosalita/distributed-lottery-analyzer`).
+- Basic project structure established (`cmd/analyser`, `internal/data`, `cmd/getdrawhistory`).
+- Built a standalone data-gathering script (`cmd/getdrawhistory`) that:
+  - Fetches the latest 180-day summary CSVs for all 4 games and merges them into a deduplicated, sorted main CSV.
+  - Extracts draw numbers and dynamically downloads the detailed prize breakdown JSON files for every historical draw.
+  - Implements smart caching to skip previously downloaded files and respect API rate limits.
+- Generic JSON data models (`DrawDetailsResponse`, etc.) defined to map the National Lottery API responses.
+
+## Next Steps for Development
+### 1. Data Loading (Leader Pod)
+- Build a loader package in `internal/data` to parse the downloaded JSON files into our Go structs.
+- Implement the Data Manager in `cmd/analyser` to load this complete historical dataset into memory on startup.
+
+### 2. Core Logic Implementation
+- Build the brute-force evaluation engine to calculate total historical profit for a given line.
+
+### 3. Distributed Networking
+- Build the Dispatcher logic on the Leader to hand out chunks of combinations.
+- Build the TCP/gRPC communication for workers to fetch chunks and report results.
+
+### 4. Containerization & Deployment
+- Write the `Dockerfile`.
+- Create the `DistributedJob` custom resource YAML to deploy the solver to the Kubernetes cluster.
