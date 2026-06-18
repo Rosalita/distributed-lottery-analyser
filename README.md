@@ -1,4 +1,4 @@
-# Distributed Lottery Analyzer
+# Distributed Lottery Analyser
 
 A highly parallelized, distributed application designed to find the most historically profitable lottery ticket for major UK National Lottery games.
 
