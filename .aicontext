@@ -29,19 +29,18 @@ This application is packaged as a single Docker container but uses its networkin
   - Extracts draw numbers and dynamically downloads the detailed prize breakdown JSON files for every historical draw.
   - Implements smart caching to skip previously downloaded files and respect API rate limits.
 - Generic JSON data models (`DrawDetailsResponse`, etc.) defined to map the National Lottery API responses.
+- **Data Loading Phase Complete:** Created the `cmd/analyser/internal/data` package. The Leader pod successfully loads all JSON files into memory at startup as a fast-lookup map (`map[string]map[int]DrawDetails`).
+- Added `CalculateMatches` and `GetPrize` helper methods to the data models to prepare for rapid brute-force evaluation.
 
 ## Next Steps for Development
-### 1. Data Loading (Leader Pod)
-- Build a loader package in `internal/data` to parse the downloaded JSON files into our Go structs.
-- Implement the Data Manager in `cmd/analyser` to load this complete historical dataset into memory on startup.
-
-### 2. Core Logic Implementation
+### 1. Core Logic Implementation (Evaluator)
 - Build the brute-force evaluation engine to calculate total historical profit for a given line.
+- Create a combination generator to split the millions of possible tickets into predictable chunks.
 
-### 3. Distributed Networking
+### 2. Distributed Networking
 - Build the Dispatcher logic on the Leader to hand out chunks of combinations.
 - Build the TCP/gRPC communication for workers to fetch chunks and report results.
 
-### 4. Containerization & Deployment
+### 3. Containerization & Deployment
 - Write the `Dockerfile`.
 - Create the `DistributedJob` custom resource YAML to deploy the solver to the Kubernetes cluster.
