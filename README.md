@@ -28,6 +28,24 @@ To update the local dataset, run the following command from the root of the repo
 go run ./cmd/getdrawhistory
 ```
 
+## Brute-Force Solver Engine
+
+To find the most profitable ticket combination, the analyser uses two key mathematical and performance techniques:
+
+### 1. Combinatorial Number System (Combinadics)
+
+We map the massive multidimensional ticket combination space (e.g., matching 5 main numbers and 1 extra ball) into a flat, 1D rank space from `0` to `TotalCombinations - 1`. 
+
+Using the **Combinatorial Number System (Combinadics)**, a worker can instantaneously decode any rank `R` into its exact combination of numbers without storing combinations in memory or maintaining generator state. This allows the leader to distribute work to worker pods in simple, independent range chunks (e.g., `[1,000,000, 2,000,000)`).
+
+### 2. High-Performance Bitmasking
+
+To evaluate combinations as fast as possible against historical draws, we convert ticket combinations and draw results into `uint64` bitmasks:
+- Finding matches between a ticket and a draw is done via a single bitwise AND followed by a population count (`math/bits.OnesCount64`), which Go compiles down to the native CPU `POPCNT` assembly instruction.
+- Prize values are pre-parsed into a static 2D lookup matrix `[matchPrimary][matchSecondary]` per draw, avoiding map lookups or conditional checks during the inner simulation loop.
+
+This yields an evaluation loop that runs in a few clock cycles per ticket, enabling evaluation of millions of tickets per second per core.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](file:///c:/dev/go/src/github.com/Rosalita/distributed-lottery-analyser/LICENSE) file for details.

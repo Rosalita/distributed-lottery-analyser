@@ -1,4 +1,4 @@
-# AI Pairing Context: distributed-lottery-analyzer
+# AI Pairing Context: distributed-lottery-analyser
 
 ## Project Overview
 A highly parallelized, distributed application designed to run on top of the custom `distributed-compute-operator` which has already been created at https://github.com/Rosalita/distributed-compute-operator
@@ -6,41 +6,61 @@ A highly parallelized, distributed application designed to run on top of the cus
 This project has one main goal using the complete historical datasets (including prize breakdowns) for major UK National Lottery games (Lotto, Euromillions, Thunderball, and Set For Life):
 1. **Most Profitable Line Finder:** Distribute the total possible combination space across worker pods to brute-force evaluate every single possible ticket against all historical draws, finding the specific line for each game that would have paid out the most total money over all time.
 
+---
 
 ## Architecture (Tightly-Coupled Distributed Workload)
 This application is packaged as a single Docker container but uses its networking hostname to determine its role at runtime.
 
 ### The Leader Pod (`<job-name>-leader`)
 - **Data Manager:** Loads the historical datasets (winning numbers and prize values per tier) for all lottery games into memory on startup.
-- **Global Observer & Dispatcher:** Assigns chunks of the total combination space (e.g., lines starting with 1, lines starting with 2) to connecting workers. Runs a gRPC/TCP server to receive and aggregate the highest-earning lines found by the workers.
+- **Global Observer & Dispatcher:** Assigns chunks of the total combination space (ranks) to connecting workers. Runs a gRPC server to receive and aggregate the highest-earning lines found by the workers.
 
 ### The Worker Pods (`<job-name>-worker-X`)
-- **Combination Chunk Processing:** Each worker pod receives a specific subset of the millions of possible ticket combinations from the leader.
+- **Combination Chunk Processing:** Each worker pod receives a specific subset of the millions of possible ticket combinations (represented as a flat range of ranks `[StartRank, EndRank)`) from the leader.
 - **Historical Evaluation:** Workers rapidly simulate playing their assigned combinations across every historical draw, calculating the total monetary payout for each line based on historical prize tiers.
-- **Result Reporting:** Once a worker finishes evaluating its chunk, it sends the top-earning lines and their total historical profit back to the leader over predictable Headless Service DNS.
+- **Result Reporting:** Once a worker finishes evaluating its chunk, it sends the top-earning lines and their total historical profit back to the leader over gRPC.
+
+---
 
 ## Progress So Far
-- Project conceptualized.
-- Infrastructure (Custom Kubernetes Operator) is complete and tested in the `distributed-compute-operator` repository.
-- Go module initialized (`github.com/Rosalita/distributed-lottery-analyzer`).
-- Basic project structure established (`cmd/analyser`, `internal/data`, `cmd/getdrawhistory`).
-- Built a standalone data-gathering script (`cmd/getdrawhistory`) that:
-  - Fetches the latest 180-day summary CSVs for all 4 games and merges them into a deduplicated, sorted main CSV.
-  - Extracts draw numbers and dynamically downloads the detailed prize breakdown JSON files for every historical draw.
-  - Implements smart caching to skip previously downloaded files and respect API rate limits.
-- Generic JSON data models (`DrawDetailsResponse`, etc.) defined to map the National Lottery API responses.
-- **Data Loading Phase Complete:** Created the `cmd/analyser/internal/data` package. The Leader pod successfully loads all JSON files into memory at startup as a fast-lookup map (`map[string]map[int]DrawDetails`).
-- Added `CalculateMatches` and `GetPrize` helper methods to the data models to prepare for rapid brute-force evaluation.
+- **Infrastructure:** Custom Kubernetes Operator is complete and tested in the `distributed-compute-operator` repository.
+- **Project Licensing & Normalization:**
+  - Added MIT License under 2026 Rosalita.
+  - Added `.gitattributes` to enforce consistent LF line endings repository-wide.
+- **Data Gathering:** Built a standalone data-gathering script (`cmd/getdrawhistory`) that:
+  - Fetches the latest 180-day summary CSVs and merges them into deduplicated CSV files.
+  - Downloads the detailed prize breakdown JSON files for every historical draw with smart caching.
+- **Data Loading:** Created `cmd/analyser/internal/data` package to successfully load historical draw JSON files into memory at startup.
+- **Core Logic & Mathematical Engine (Stage 1 - Complete & Verified):**
+  - **Combinadics (`internal/evaluator/combinadics.go`):** Implemented pre-computed binomial coefficients (Pascal's triangle) and unranking logic. Added `UnrankTicket` to map a 64-bit integer rank index to distinct primary/secondary ticket slices.
+  - **Masking (`internal/evaluator/masking.go`):** Implemented `SliceToMask` to convert number slices to `uint64` bitmasks.
+  - **Evaluator (`internal/evaluator/evaluator.go`):** Implemented `NewFastDraw` (parsing draws to `uint64` bitmasks and a static 2D lookup matrix `[matchPrimary][matchSecondary]`) and `EvaluateRange` (a zero-allocation matching loop using `math/bits.OnesCount64` / CPU `POPCNT` instruction).
+  - **Modular Unit Tests:** Created `combinadics_test.go`, `masking_test.go`, and `evaluator_test.go` using a map-based table testing format. Test assertions are strictly non-tautological (utilizing explicit binary literals, e.g., `0b101010`). All tests pass successfully.
 
-## Next Steps for Development
-### 1. Core Logic Implementation (Evaluator)
-- Build the brute-force evaluation engine to calculate total historical profit for a given line.
-- Create a combination generator to split the millions of possible tickets into predictable chunks.
+---
 
-### 2. Distributed Networking
-- Build the Dispatcher logic on the Leader to hand out chunks of combinations.
-- Build the TCP/gRPC communication for workers to fetch chunks and report results.
+## Approved Plan & Next Stages for Development
 
-### 3. Containerization & Deployment
-- Write the `Dockerfile`.
-- Create the `DistributedJob` custom resource YAML to deploy the solver to the Kubernetes cluster.
+The project is being built in small, incremental stages as tracked in the local task checklist (`task.md`).
+
+### Stage 2: gRPC Setup & Code Generation (Next Step)
+- Add gRPC and protobuf dependencies to `go.mod`.
+- Write the protobuf schema `proto/analyser.proto`:
+  - `RegisterWorker`: Worker registers with leader and receives the game configuration plus all historical draw data (to keep the worker stateless and avoid volume mounts).
+  - `GetWork`: Issues range chunks to workers.
+  - `ReportResult`: Workers report the top tickets found within their assigned range.
+- Compile protobuf to Go gRPC client/server code using `protoc`.
+
+### Stage 3: Leader Coordinator Server
+- Implement the coordinator logic on the Leader (`internal/coordinator/leader.go`) to split the combination space into equal ranges, track worker registration, monitor chunk states (Unassigned, InProgress, Completed), handle worker disconnections/retries, and run the gRPC server.
+
+### Stage 4: Worker Client
+- Implement the Worker execution client (`internal/worker/worker.go`) to connect to the leader, request work ranges, run the evaluator core on the range, and report results back.
+
+### Stage 5: Main Integration & Verification
+- Update `cmd/analyser/main.go` to parse CLI flags (role, port, leader address, game name).
+- Perform a local end-to-end integration test of Leader + Worker.
+
+### Stage 6: Containerization & Deployment
+- Write the `Dockerfile` for containerizing the application.
+- Create the Kubernetes `DistributedJob` custom resource YAML to deploy the solver to the Kubernetes cluster using the `distributed-compute-operator`.
