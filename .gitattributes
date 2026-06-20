@@ -1,0 +1,10 @@
+# Handle line endings automatically for files detected as text
+# and leave binary files alone.
+* text=auto
+
+# Force LF line endings for Go files, markdown files, and metadata
+*.go text eol=lf
+*.md text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+LICENSE text eol=lf

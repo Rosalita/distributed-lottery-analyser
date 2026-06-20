@@ -27,3 +27,7 @@ To update the local dataset, run the following command from the root of the repo
 ```bash
 go run ./cmd/getdrawhistory
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](file:///c:/dev/go/src/github.com/Rosalita/distributed-lottery-analyser/LICENSE) file for details.
