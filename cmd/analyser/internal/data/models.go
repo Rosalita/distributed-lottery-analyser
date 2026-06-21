@@ -15,7 +15,7 @@ type DrawResult struct {
 	DrawDate     time.Time           `json:"drawDate"`
 	DrawnNumbers DrawnNumbersWrapper `json:"drawnNumbers"`
 	TopPrize     struct {
-		PrizeCents int64 `json:"prizeCents"`
+		PrizePence int64 `json:"prizeCents"`
 	} `json:"topPrize"`
 }
 
@@ -40,7 +40,7 @@ type PrizeLevel struct {
 	MatchBallPrimary   int    `json:"matchBallPrimary"`
 	MatchBallSecondary int    `json:"matchBallSecondary"`
 	Prize              struct {
-		PrizeCents int64 `json:"prizeCents"`
+		PrizePence int64 `json:"prizeCents"`
 	} `json:"prize"`
 }
 
@@ -66,21 +66,21 @@ func (d *DrawDetails) CalculateMatches(playedPrimary, playedSecondary []int) (ma
 	return matchPrimary, matchSecondary
 }
 
-// GetPrize returns the prize amount in cents for a given number of primary and secondary matches.
+// GetPrize returns the prize amount in pence for a given number of primary and secondary matches.
 func (d *DrawDetails) GetPrize(matchPrimary, matchSecondary int) int64 {
 	return d.GetPrizeForRound(matchPrimary, matchSecondary, "ONE")
 }
 
-// GetPrizeForRound returns the prize amount in cents for a given round ("ONE" or "TWO").
+// GetPrizeForRound returns the prize amount in pence for a given round ("ONE" or "TWO").
 func (d *DrawDetails) GetPrizeForRound(matchPrimary, matchSecondary int, round string) int64 {
 	for _, level := range d.PrizeBreakdown.PrizeLevels {
 		// Matches target round or default round ONE if DrawRound is empty.
 		matchRound := level.DrawRound == round || (round == "ONE" && (level.DrawRound == "" || level.DrawRound == "ONE"))
 		if matchRound && level.MatchBallPrimary == matchPrimary && level.MatchBallSecondary == matchSecondary {
-			prize := level.Prize.PrizeCents
+			prize := level.Prize.PrizePence
 			// If it's a jackpot tier and the prize is 0 due to 0 winners, override with top prize jackpot.
 			if prize == 0 && d.isJackpotTier(matchPrimary, matchSecondary) {
-				prize = d.DrawResult.TopPrize.PrizeCents
+				prize = d.DrawResult.TopPrize.PrizePence
 			}
 			return prize
 		}

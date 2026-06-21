@@ -181,14 +181,14 @@ func getIntSlice(row []string, headers []string, names []string) []int {
 func getDefaultPrizeLevels(gameName string) []PrizeLevel {
 	var levels []PrizeLevel
 
-	addLevel := func(round string, primary, secondary int, prizeCents int64, label string) {
+	addLevel := func(round string, primary, secondary int, prizePence int64, label string) {
 		pl := PrizeLevel{
 			DrawRound:          round,
 			MatchLabel:         label,
 			MatchBallPrimary:   primary,
 			MatchBallSecondary: secondary,
 		}
-		pl.Prize.PrizeCents = prizeCents
+		pl.Prize.PrizePence = prizePence
 		levels = append(levels, pl)
 	}
 

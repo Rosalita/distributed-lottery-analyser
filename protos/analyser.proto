@@ -38,7 +38,8 @@ message PrizeLevel {
   string match_label = 1;
   int32 match_ball_primary = 2;
   int32 match_ball_secondary = 3;
-  int64 prize_cents = 4;
+  int64 prize_pence = 4;
+  string draw_round = 5;
 }
 
 message PrizeBreakdown {
@@ -69,7 +70,7 @@ message GetWorkResponse {
 message Ticket {
   repeated int32 primary_numbers = 1;
   repeated int32 secondary_numbers = 2;
-  int64 total_prize_cents = 3;
+  int64 total_prize_pence = 3;
 }
 
 message ReportResultRequest {

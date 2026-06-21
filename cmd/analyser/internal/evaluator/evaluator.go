@@ -66,7 +66,7 @@ func GetGameConfig(name string) (GameConfig, bool) {
 type Ticket struct {
 	PrimaryNumbers   []int
 	SecondaryNumbers []int
-	TotalPrizeCents  int64
+	TotalPrizePence  int64
 }
 
 // FastDraw is a high-performance representation of a historical draw.
@@ -75,10 +75,10 @@ type FastDraw struct {
 	IsLottoTwoRound bool
 	PrimaryMask     uint64
 	SecondaryMask   uint64
-	PrizeMatrix     [7][3]int64 // PrizeMatrix[matchPrimary][matchSecondary] -> prize cents
+	PrizeMatrix     [7][3]int64 // PrizeMatrix[matchPrimary][matchSecondary] -> prize pence
 	PrimaryMask2    uint64
 	SecondaryMask2  uint64
-	PrizeMatrix2    [7][3]int64 // PrizeMatrix2[matchPrimary][matchSecondary] -> prize cents for Round 2
+	PrizeMatrix2    [7][3]int64 // PrizeMatrix2[matchPrimary][matchSecondary] -> prize pence for Round 2
 }
 
 // NewFastDraw converts standard DrawDetails to a FastDraw.
@@ -128,14 +128,14 @@ func NewTopTickets(limit int) *TopTickets {
 // Slice copying is deferred until insertion to avoid unnecessary memory allocations.
 func (tt *TopTickets) Add(totalPrize int64, primarySlice, secondarySlice []int) {
 	// If the list is full and the new ticket is not better than the worst in our list, skip it.
-	if len(tt.Tickets) >= tt.Limit && totalPrize <= tt.Tickets[len(tt.Tickets)-1].TotalPrizeCents {
+	if len(tt.Tickets) >= tt.Limit && totalPrize <= tt.Tickets[len(tt.Tickets)-1].TotalPrizePence {
 		return
 	}
 
 	// Find insertion index
 	idx := len(tt.Tickets)
 	for i, existing := range tt.Tickets {
-		if totalPrize > existing.TotalPrizeCents {
+		if totalPrize > existing.TotalPrizePence {
 			idx = i
 			break
 		}
@@ -154,7 +154,7 @@ func (tt *TopTickets) Add(totalPrize int64, primarySlice, secondarySlice []int) 
 	t := Ticket{
 		PrimaryNumbers:   pSlice,
 		SecondaryNumbers: sSlice,
-		TotalPrizeCents:  totalPrize,
+		TotalPrizePence:  totalPrize,
 	}
 
 	// Insert into slice

@@ -42,9 +42,9 @@ func TestEvaluateRange(t *testing.T) {
 		},
 		"lotto two round": {
 			// Player ticket [1, 2, 3, 4, 5, 6] matches:
-			// Round 1: [1, 2, 3, 4, 10, 11] -> Match 4 (14000 cents)
-			// Round 2: [1, 2, 3, 13, 14, 15] -> Match 3 (3000 cents)
-			// Total prize: 14000 + 3000 = 17000 cents.
+			// Round 1: [1, 2, 3, 4, 10, 11] -> Match 4 (14000 pence)
+			// Round 2: [1, 2, 3, 13, 14, 15] -> Match 3 (3000 pence)
+			// Total prize: 14000 + 3000 = 17000 pence.
 			config:           LottoConfig,
 			drawNumbers:      []int{1, 2, 3, 4, 10, 11},
 			drawSecondary:    []int{12},
@@ -83,12 +83,12 @@ func TestEvaluateRange(t *testing.T) {
 				{DrawRound: "ONE", MatchBallPrimary: 3, MatchBallSecondary: 0},
 				{DrawRound: "TWO", MatchBallPrimary: 3, MatchBallSecondary: 0},
 			}
-			details.PrizeBreakdown.PrizeLevels[0].Prize.PrizeCents = 1000000
-			details.PrizeBreakdown.PrizeLevels[1].Prize.PrizeCents = 500000
-			details.PrizeBreakdown.PrizeLevels[2].Prize.PrizeCents = 10000
-			details.PrizeBreakdown.PrizeLevels[3].Prize.PrizeCents = 14000
-			details.PrizeBreakdown.PrizeLevels[4].Prize.PrizeCents = 3000
-			details.PrizeBreakdown.PrizeLevels[5].Prize.PrizeCents = 3000
+			details.PrizeBreakdown.PrizeLevels[0].Prize.PrizePence = 1000000
+			details.PrizeBreakdown.PrizeLevels[1].Prize.PrizePence = 500000
+			details.PrizeBreakdown.PrizeLevels[2].Prize.PrizePence = 10000
+			details.PrizeBreakdown.PrizeLevels[3].Prize.PrizePence = 14000
+			details.PrizeBreakdown.PrizeLevels[4].Prize.PrizePence = 3000
+			details.PrizeBreakdown.PrizeLevels[5].Prize.PrizePence = 3000
 
 			fd := NewFastDraw(details, tc.config.Name)
 
@@ -104,8 +104,8 @@ func TestEvaluateRange(t *testing.T) {
 			if !reflect.DeepEqual(bestTicket.SecondaryNumbers, tc.expectedTicketS) {
 				t.Errorf("expected ticket secondary %+v, got %+v", tc.expectedTicketS, bestTicket.SecondaryNumbers)
 			}
-			if bestTicket.TotalPrizeCents != tc.expectedPrize {
-				t.Errorf("expected prize %d, got %d", tc.expectedPrize, bestTicket.TotalPrizeCents)
+			if bestTicket.TotalPrizePence != tc.expectedPrize {
+				t.Errorf("expected prize %d, got %d", tc.expectedPrize, bestTicket.TotalPrizePence)
 			}
 		})
 	}

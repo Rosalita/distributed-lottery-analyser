@@ -90,7 +90,7 @@ func RunWorker(leaderAddr string, limit int) error {
 			pbTickets[i] = &analyserPb.Ticket{
 				PrimaryNumbers:   intToInt32Slice(t.PrimaryNumbers),
 				SecondaryNumbers: intToInt32Slice(t.SecondaryNumbers),
-				TotalPrizeCents:  t.TotalPrizeCents,
+				TotalPrizePence:  t.TotalPrizePence,
 			}
 		}
 
@@ -129,11 +129,12 @@ func mapDraw(pbDraw *analyserPb.DrawDetails) data.DrawDetails {
 	levels := make([]data.PrizeLevel, len(pbDraw.GetPrizeBreakdown().GetPrizeLevels()))
 	for i, l := range pbDraw.GetPrizeBreakdown().GetPrizeLevels() {
 		levels[i] = data.PrizeLevel{
+			DrawRound:          l.GetDrawRound(),
 			MatchLabel:         l.GetMatchLabel(),
 			MatchBallPrimary:   int(l.GetMatchBallPrimary()),
 			MatchBallSecondary: int(l.GetMatchBallSecondary()),
 		}
-		levels[i].Prize.PrizeCents = l.GetPrizeCents()
+		levels[i].Prize.PrizePence = l.GetPrizePence()
 	}
 
 	d := data.DrawDetails{}

@@ -132,7 +132,8 @@ func (c *Coordinator) RegisterWorker(ctx context.Context, req *analyserPb.Regist
 				MatchLabel:         l.MatchLabel,
 				MatchBallPrimary:   int32(l.MatchBallPrimary),
 				MatchBallSecondary: int32(l.MatchBallSecondary),
-				PrizeCents:         l.Prize.PrizeCents,
+				PrizePence:         l.Prize.PrizePence,
+				DrawRound:          l.DrawRound,
 			}
 		}
 		pbDraws[i] = &analyserPb.DrawDetails{
@@ -257,7 +258,7 @@ func (c *Coordinator) ReportResult(ctx context.Context, req *analyserPb.ReportRe
 		for idx, val := range t.GetSecondaryNumbers() {
 			secondary[idx] = int(val)
 		}
-		c.topTickets.Add(t.GetTotalPrizeCents(), primary, secondary)
+		c.topTickets.Add(t.GetTotalPrizePence(), primary, secondary)
 	}
 
 	return &analyserPb.ReportResultResponse{

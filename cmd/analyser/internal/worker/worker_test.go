@@ -45,7 +45,7 @@ func (m *mockLeaderServer) RegisterWorker(ctx context.Context, req *analyserPb.R
 							MatchLabel:         "5+1",
 							MatchBallPrimary:   5,
 							MatchBallSecondary: 1,
-							PrizeCents:         500_000_000,
+							PrizePence:         500_000_000,
 						},
 					},
 				},

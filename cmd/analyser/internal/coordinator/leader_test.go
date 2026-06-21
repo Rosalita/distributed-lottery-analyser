@@ -173,7 +173,7 @@ func TestReportResultAndProgress(t *testing.T) {
 			{
 				PrimaryNumbers:   []int32{1, 2, 3, 4, 5},
 				SecondaryNumbers: []int32{6},
-				TotalPrizeCents:  100_000,
+				TotalPrizePence:  100_000,
 			},
 		},
 	}
@@ -197,8 +197,8 @@ func TestReportResultAndProgress(t *testing.T) {
 		t.Fatalf("expected 1 top ticket, got %d", len(top))
 	}
 
-	if top[0].TotalPrizeCents != 100_000 {
-		t.Errorf("expected prize 100,000, got %d", top[0].TotalPrizeCents)
+	if top[0].TotalPrizePence != 100_000 {
+		t.Errorf("expected prize 100,000, got %d", top[0].TotalPrizePence)
 	}
 
 	completed, total := c.Progress()

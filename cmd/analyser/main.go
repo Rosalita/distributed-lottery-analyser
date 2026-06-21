@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,8 +120,8 @@ func main() {
 		fmt.Printf("TOP %d MOST PROFITABLE TICKETS FOR %s\n", len(tickets), strings.ToUpper(config.Name))
 		fmt.Println("==================================================")
 		for idx, t := range tickets {
-			fmt.Printf("%d. Primary: %v, Secondary: %v | Total Earnings: £%.2f\n",
-				idx+1, t.PrimaryNumbers, t.SecondaryNumbers, float64(t.TotalPrizeCents)/100.0)
+			fmt.Printf("%d. Primary: %v, Secondary: %v | Total Earnings: £%s\n",
+				idx+1, t.PrimaryNumbers, t.SecondaryNumbers, formatPence(t.TotalPrizePence))
 		}
 		fmt.Println("==================================================")
 
@@ -134,4 +135,22 @@ func main() {
 
 		log.Println("Worker completed all work assignments. Exiting.")
 	}
+}
+
+func formatPence(pence int64) string {
+	pounds := pence / 100
+	remainder := pence % 100
+
+	poundsStr := strconv.FormatInt(pounds, 10)
+	var formattedPounds []byte
+
+	n := len(poundsStr)
+	for i := 0; i < n; i++ {
+		if i > 0 && (n-i)%3 == 0 {
+			formattedPounds = append(formattedPounds, ',')
+		}
+		formattedPounds = append(formattedPounds, poundsStr[i])
+	}
+
+	return fmt.Sprintf("%s.%02d", string(formattedPounds), remainder)
 }
