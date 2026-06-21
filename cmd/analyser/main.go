@@ -122,7 +122,7 @@ func main() {
 			fmt.Printf("%d. Primary: %v, Secondary: %v | Total Earnings: £%.2f\n",
 				idx+1, t.PrimaryNumbers, t.SecondaryNumbers, float64(t.TotalPrizeCents)/100.0)
 		}
-		fmt.Println("==================================================\n")
+		fmt.Println("==================================================")
 
 	} else {
 		log.Printf("Role: Worker. Connecting to leader at %s...", *leaderAddr)

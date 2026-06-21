@@ -14,6 +14,9 @@ type DrawResult struct {
 	DrawNo       int                 `json:"drawNo"`
 	DrawDate     time.Time           `json:"drawDate"`
 	DrawnNumbers DrawnNumbersWrapper `json:"drawnNumbers"`
+	TopPrize     struct {
+		PrizeCents int64 `json:"prizeCents"`
+	} `json:"topPrize"`
 }
 
 type DrawnNumbersWrapper struct {
@@ -21,6 +24,10 @@ type DrawnNumbersWrapper struct {
 		PrimaryNumbers   []int `json:"primaryNumbers"`
 		SecondaryNumbers []int `json:"secondaryNumbers"`
 	} `json:"drawnNumbers"`
+	DrawnNumbersAdditional *struct {
+		PrimaryNumbers   []int `json:"primaryNumbers"`
+		SecondaryNumbers []int `json:"secondaryNumbers"`
+	} `json:"drawnNumbersAdditional"`
 }
 
 type PrizeBreakdown struct {
@@ -28,6 +35,7 @@ type PrizeBreakdown struct {
 }
 
 type PrizeLevel struct {
+	DrawRound          string `json:"drawRound"`
 	MatchLabel         string `json:"matchLabel"`
 	MatchBallPrimary   int    `json:"matchBallPrimary"`
 	MatchBallSecondary int    `json:"matchBallSecondary"`
@@ -60,10 +68,36 @@ func (d *DrawDetails) CalculateMatches(playedPrimary, playedSecondary []int) (ma
 
 // GetPrize returns the prize amount in cents for a given number of primary and secondary matches.
 func (d *DrawDetails) GetPrize(matchPrimary, matchSecondary int) int64 {
+	return d.GetPrizeForRound(matchPrimary, matchSecondary, "ONE")
+}
+
+// GetPrizeForRound returns the prize amount in cents for a given round ("ONE" or "TWO").
+func (d *DrawDetails) GetPrizeForRound(matchPrimary, matchSecondary int, round string) int64 {
 	for _, level := range d.PrizeBreakdown.PrizeLevels {
-		if level.MatchBallPrimary == matchPrimary && level.MatchBallSecondary == matchSecondary {
-			return level.Prize.PrizeCents
+		// Matches target round or default round ONE if DrawRound is empty.
+		matchRound := level.DrawRound == round || (round == "ONE" && (level.DrawRound == "" || level.DrawRound == "ONE"))
+		if matchRound && level.MatchBallPrimary == matchPrimary && level.MatchBallSecondary == matchSecondary {
+			prize := level.Prize.PrizeCents
+			// If it's a jackpot tier and the prize is 0 due to 0 winners, override with top prize jackpot.
+			if prize == 0 && d.isJackpotTier(matchPrimary, matchSecondary) {
+				prize = d.DrawResult.TopPrize.PrizeCents
+			}
+			return prize
 		}
 	}
 	return 0
+}
+
+func (d *DrawDetails) isJackpotTier(matchPrimary, matchSecondary int) bool {
+	switch d.DrawResult.GameID {
+	case 6, 1: // Lotto
+		return matchPrimary == 6 && matchSecondary == 0
+	case 33: // EuroMillions
+		return matchPrimary == 5 && matchSecondary == 2
+	case 4: // Thunderball
+		return matchPrimary == 5 && matchSecondary == 1
+	case 3: // Set For Life
+		return matchPrimary == 5 && matchSecondary == 1
+	}
+	return false
 }

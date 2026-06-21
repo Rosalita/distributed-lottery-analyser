@@ -71,10 +71,14 @@ type Ticket struct {
 
 // FastDraw is a high-performance representation of a historical draw.
 type FastDraw struct {
-	DrawNo        int
-	PrimaryMask   uint64
-	SecondaryMask uint64
-	PrizeMatrix   [7][3]int64 // PrizeMatrix[matchPrimary][matchSecondary] -> prize cents
+	DrawNo          int
+	IsLottoTwoRound bool
+	PrimaryMask     uint64
+	SecondaryMask   uint64
+	PrizeMatrix     [7][3]int64 // PrizeMatrix[matchPrimary][matchSecondary] -> prize cents
+	PrimaryMask2    uint64
+	SecondaryMask2  uint64
+	PrizeMatrix2    [7][3]int64 // PrizeMatrix2[matchPrimary][matchSecondary] -> prize cents for Round 2
 }
 
 // NewFastDraw converts standard DrawDetails to a FastDraw.
@@ -85,12 +89,24 @@ func NewFastDraw(d data.DrawDetails, gameName string) FastDraw {
 	fd.PrimaryMask = SliceToMask(d.DrawResult.DrawnNumbers.DrawnNumbers.PrimaryNumbers)
 	fd.SecondaryMask = SliceToMask(d.DrawResult.DrawnNumbers.DrawnNumbers.SecondaryNumbers)
 
-	// Pre-fill the 2D matrix for match primary (0 to 6) and match secondary (0 to 2)
+	// Pre-fill the 2D matrix for match primary (0 to 6) and match secondary (0 to 2) for Round 1
 	for p := 0; p < 7; p++ {
 		for s := 0; s < 3; s++ {
-			fd.PrizeMatrix[p][s] = d.GetPrize(p, s)
+			fd.PrizeMatrix[p][s] = d.GetPrizeForRound(p, s, "ONE")
 		}
 	}
+
+	if gameName == "lotto" && d.DrawResult.DrawnNumbers.DrawnNumbersAdditional != nil {
+		fd.IsLottoTwoRound = true
+		fd.PrimaryMask2 = SliceToMask(d.DrawResult.DrawnNumbers.DrawnNumbersAdditional.PrimaryNumbers)
+		fd.SecondaryMask2 = SliceToMask(d.DrawResult.DrawnNumbers.DrawnNumbersAdditional.SecondaryNumbers)
+		for p := 0; p < 7; p++ {
+			for s := 0; s < 3; s++ {
+				fd.PrizeMatrix2[p][s] = d.GetPrizeForRound(p, s, "TWO")
+			}
+		}
+	}
+
 	return fd
 }
 
@@ -170,16 +186,31 @@ func EvaluateRange(startRank, endRank int64, config GameConfig, draws []FastDraw
 			d := &draws[i]
 			var matchPrimary, matchSecondary int
 			if isLotto {
-				// In Lotto, there are 6 primary numbers played, and 1 bonus ball drawn.
-				// We match the player's 6 primary numbers against the 6 drawn primary numbers
-				// and against the 1 drawn secondary number (bonus ball).
+				// In Lotto, matchPrimary is the match count of primary numbers.
+				// We only match matchSecondary (bonus ball) if matchPrimary is exactly 5.
 				matchPrimary = bits.OnesCount64(primaryMask & d.PrimaryMask)
-				matchSecondary = bits.OnesCount64(primaryMask & d.SecondaryMask)
+				if matchPrimary == 5 {
+					matchSecondary = bits.OnesCount64(primaryMask & d.SecondaryMask)
+				} else {
+					matchSecondary = 0
+				}
+				totalPrize += d.PrizeMatrix[matchPrimary][matchSecondary]
+
+				if d.IsLottoTwoRound {
+					matchPrimary2 := bits.OnesCount64(primaryMask & d.PrimaryMask2)
+					var matchSecondary2 int
+					if matchPrimary2 == 5 {
+						matchSecondary2 = bits.OnesCount64(primaryMask & d.SecondaryMask2)
+					} else {
+						matchSecondary2 = 0
+					}
+					totalPrize += d.PrizeMatrix2[matchPrimary2][matchSecondary2]
+				}
 			} else {
 				matchPrimary = bits.OnesCount64(primaryMask & d.PrimaryMask)
 				matchSecondary = bits.OnesCount64(secondaryMask & d.SecondaryMask)
+				totalPrize += d.PrizeMatrix[matchPrimary][matchSecondary]
 			}
-			totalPrize += d.PrizeMatrix[matchPrimary][matchSecondary]
 		}
 
 		if totalPrize > 0 {

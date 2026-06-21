@@ -12,6 +12,8 @@ func TestEvaluateRange(t *testing.T) {
 		config           GameConfig
 		drawNumbers      []int
 		drawSecondary    []int
+		drawNumbersAdd   []int
+		drawSecondaryAdd []int
 		rank             int64
 		expectedTicketP  []int
 		expectedTicketS  []int
@@ -26,23 +28,67 @@ func TestEvaluateRange(t *testing.T) {
 			expectedTicketS:  nil,
 			expectedPrize:    1000000,
 		},
+		"lotto match 4 + bonus": {
+			// Player ticket [1, 2, 3, 4, 5, 6] matches primary 1, 2, 3, 4 and bonus 6.
+			// Because matchPrimary is 4 (not 5), bonus ball matching should not affect the tier,
+			// and it should correctly receive the Match 4 prize.
+			config:           LottoConfig,
+			drawNumbers:      []int{1, 2, 3, 4, 10, 11},
+			drawSecondary:    []int{6},
+			rank:             0,
+			expectedTicketP:  []int{1, 2, 3, 4, 5, 6},
+			expectedTicketS:  nil,
+			expectedPrize:    14000,
+		},
+		"lotto two round": {
+			// Player ticket [1, 2, 3, 4, 5, 6] matches:
+			// Round 1: [1, 2, 3, 4, 10, 11] -> Match 4 (14000 cents)
+			// Round 2: [1, 2, 3, 13, 14, 15] -> Match 3 (3000 cents)
+			// Total prize: 14000 + 3000 = 17000 cents.
+			config:           LottoConfig,
+			drawNumbers:      []int{1, 2, 3, 4, 10, 11},
+			drawSecondary:    []int{12},
+			drawNumbersAdd:   []int{1, 2, 3, 13, 14, 15},
+			drawSecondaryAdd: []int{16},
+			rank:             0,
+			expectedTicketP:  []int{1, 2, 3, 4, 5, 6},
+			expectedTicketS:  nil,
+			expectedPrize:    17000,
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			details := data.DrawDetails{}
 			details.DrawResult.DrawNo = 100
+			details.DrawResult.GameID = 6 // Lotto
 			details.DrawResult.DrawnNumbers.DrawnNumbers.PrimaryNumbers = tc.drawNumbers
 			details.DrawResult.DrawnNumbers.DrawnNumbers.SecondaryNumbers = tc.drawSecondary
 
+			if tc.drawNumbersAdd != nil {
+				details.DrawResult.DrawnNumbers.DrawnNumbersAdditional = &struct {
+					PrimaryNumbers   []int `json:"primaryNumbers"`
+					SecondaryNumbers []int `json:"secondaryNumbers"`
+				}{
+					PrimaryNumbers:   tc.drawNumbersAdd,
+					SecondaryNumbers: tc.drawSecondaryAdd,
+				}
+			}
+
 			details.PrizeBreakdown.PrizeLevels = []data.PrizeLevel{
-				{MatchBallPrimary: 6, MatchBallSecondary: 0},
-				{MatchBallPrimary: 5, MatchBallSecondary: 1},
-				{MatchBallPrimary: 5, MatchBallSecondary: 0},
+				{DrawRound: "ONE", MatchBallPrimary: 6, MatchBallSecondary: 0},
+				{DrawRound: "ONE", MatchBallPrimary: 5, MatchBallSecondary: 1},
+				{DrawRound: "ONE", MatchBallPrimary: 5, MatchBallSecondary: 0},
+				{DrawRound: "ONE", MatchBallPrimary: 4, MatchBallSecondary: 0},
+				{DrawRound: "ONE", MatchBallPrimary: 3, MatchBallSecondary: 0},
+				{DrawRound: "TWO", MatchBallPrimary: 3, MatchBallSecondary: 0},
 			}
 			details.PrizeBreakdown.PrizeLevels[0].Prize.PrizeCents = 1000000
 			details.PrizeBreakdown.PrizeLevels[1].Prize.PrizeCents = 500000
 			details.PrizeBreakdown.PrizeLevels[2].Prize.PrizeCents = 10000
+			details.PrizeBreakdown.PrizeLevels[3].Prize.PrizeCents = 14000
+			details.PrizeBreakdown.PrizeLevels[4].Prize.PrizeCents = 3000
+			details.PrizeBreakdown.PrizeLevels[5].Prize.PrizeCents = 3000
 
 			fd := NewFastDraw(details, tc.config.Name)
 

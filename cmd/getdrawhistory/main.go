@@ -215,6 +215,10 @@ func (d *DrawHistoryDownloader) FetchDrawDetails(gameSlug string, gameId int, dr
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("received non-200 status code: %d", resp.StatusCode)
+	}
+
 	out, err := os.Create(filePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to create file %s: %w", filePath, err)
@@ -272,9 +276,13 @@ func main() {
 		fmt.Printf("Found %d draws to check for %s.\n", len(drawNumbers), g.name)
 
 		for _, drawNo := range drawNumbers {
-			downloaded, err := downloader.FetchDrawDetails(g.dir, g.gameId, drawNo)
+			gameId := g.gameId
+			if g.dir == "lotto" && drawNo < 3179 {
+				gameId = 1
+			}
+			downloaded, err := downloader.FetchDrawDetails(g.dir, gameId, drawNo)
 			if err != nil {
-				fmt.Printf("Error fetching draw details for draw %d: %v\n", drawNo, err)
+				fmt.Printf("Error fetching draw details for draw %d (gameId %d): %v\n", drawNo, gameId, err)
 			} else if downloaded {
 				totalDownloaded++
 				fmt.Printf(" -> Downloaded details for draw %d\n", drawNo)
