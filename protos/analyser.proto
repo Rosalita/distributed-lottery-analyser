@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package analyser;
+
+option go_package = "github.com/Rosalita/distributed-lottery-analyser/protos/generated/analyser";
+
+service Analyser {
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+  rpc GetWork(GetWorkRequest) returns (GetWorkResponse);
+  rpc ReportResult(ReportResultRequest) returns (ReportResultResponse);
+}
+
+message RegisterWorkerRequest {
+  string worker_id = 1;
+}
+
+message GameConfig {
+  string name = 1;
+  int32 primary_count = 2;
+  int32 primary_select = 3;
+  int32 secondary_count = 4;
+  int32 secondary_select = 5;
+}
+
+message DrawnNumbers {
+  repeated int32 primary_numbers = 1;
+  repeated int32 secondary_numbers = 2;
+}
+
+message DrawResult {
+  int32 game_id = 1;
+  int32 draw_no = 2;
+  string draw_date = 3;
+  DrawnNumbers drawn_numbers = 4;
+}
+
+message PrizeLevel {
+  string match_label = 1;
+  int32 match_ball_primary = 2;
+  int32 match_ball_secondary = 3;
+  int64 prize_cents = 4;
+}
+
+message PrizeBreakdown {
+  repeated PrizeLevel prize_levels = 1;
+}
+
+message DrawDetails {
+  DrawResult draw_result = 1;
+  PrizeBreakdown prize_breakdown = 2;
+}
+
+message RegisterWorkerResponse {
+  GameConfig game_config = 1;
+  repeated DrawDetails draws = 2;
+  int64 total_combinations = 3;
+}
+
+message GetWorkRequest {
+  string worker_id = 1;
+}
+
+message GetWorkResponse {
+  int64 start_rank = 1;
+  int64 end_rank = 2;
+  bool no_more_work = 3;
+}
+
+message Ticket {
+  repeated int32 primary_numbers = 1;
+  repeated int32 secondary_numbers = 2;
+  int64 total_prize_cents = 3;
+}
+
+message ReportResultRequest {
+  string worker_id = 1;
+  int64 start_rank = 2;
+  int64 end_rank = 3;
+  repeated Ticket top_tickets = 4;
+}
+
+message ReportResultResponse {
+  bool success = 1;
+  string message = 2;
+}

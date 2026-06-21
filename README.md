@@ -46,6 +46,93 @@ To evaluate combinations as fast as possible against historical draws, we conver
 
 This yields an evaluation loop that runs in a few clock cycles per ticket, enabling evaluation of millions of tickets per second per core.
 
+### 3. Distributed Leader-Worker Architecture
+
+The brute-force engine is built as a highly scaleable coordinator-worker system using gRPC:
+
+- **Leader Coordinator**:
+  - Loads historical lottery draw configurations and datasets into memory at startup.
+  - Partitions the massive combinadic search space into range chunks (tasks).
+  - Distributes tasks to connecting worker clients and monitors task heartbeat activity.
+  - Re-allocates chunks if a worker disconnects or times out before reporting back.
+  - Aggregates and thread-safely merges reported tickets into a global top-performing tickets leaderboard.
+
+- **Worker Client**:
+  - Registers with the leader and caches the game parameters and winning draw history locally.
+  - Pre-compiles draw details to CPU-friendly mask structures once at startup.
+  - Requests work range chunks in a loop, unranking each combination on-the-fly and running high-speed matching checks.
+  - Returns the top profitable combinations back to the leader.
+  - Remains completely stateless (needs no persistent disk volume mounts or DB connections).
+
+## Development & Tooling
+
+A `Makefile` is provided to simplify common development tasks:
+
+- **Compile Protobufs**: Generates the Go gRPC code under `protos/generated/analyser/` from the schema:
+  ```bash
+  make proto
+  ```
+- **Run Unit Tests**: Runs all unit test suites (combinadics, evaluator, coordinator, worker):
+  ```bash
+  make test
+  ```
+- **Build Binary**: Compiles the solver application executable to `bin/analyser.exe`:
+  ```bash
+  make build
+  ```
+- **Clean**: Cleans up all generated protobuf files:
+  ```bash
+  make clean
+  ```
+
+### Running the Solver Locally
+
+To run the solver engine on your local machine, follow these steps:
+
+#### 1. Compile Protobuf and Verify Tests
+If you make changes to the protobuf schema, compile them using the provided `Makefile`:
+```bash
+make proto
+```
+Run the test suites:
+```bash
+make test
+```
+
+#### 2. Start the Leader Coordinator
+The leader loads the historical draws dataset and starts a gRPC coordinator server. 
+
+Here are the commands to start the leader for each supported game, along with recommended chunk sizes matching their total combination spaces:
+
+```bash
+# Thunderball (8,060,598 total combinations)
+go run ./cmd/analyser --role=leader --game=thunderball --chunk-size=2000000 --limit=5
+
+# Lotto (45,057,474 total combinations)
+go run ./cmd/analyser --role=leader --game=lotto --chunk-size=5000000 --limit=5
+
+# Set For Life (15,339,390 total combinations)
+go run ./cmd/analyser --role=leader --game=setforlife --chunk-size=2000000 --limit=5
+
+# EuroMillions (139,838,160 total combinations)
+go run ./cmd/analyser --role=leader --game=euromillions --chunk-size=10000000 --limit=5
+```
+Leader options:
+- `--game`: The lottery game data to analyze (`thunderball`, `lotto`, `euromillions`, `setforlife`). Default is `thunderball`.
+- `--chunk-size`: Size of combinadic range chunks distributed to workers. Default is `100,000`.
+- `--limit`: Number of top ticket combinations to compile. Default is `5`.
+- `--port`: The port to run the gRPC server on. Default is `50051`.
+
+#### 3. Start a Worker Client
+In a new terminal window, start a worker process to connect and execute chunk tasks:
+```bash
+go run ./cmd/analyser --role=worker --leader=localhost:50051
+```
+Worker options:
+- `--leader`: Address of the leader coordinator. Default is `localhost:50051`.
+
+Once all chunk ranges have been evaluated by workers, the worker process will exit gracefully. The leader will output the top tickets and their historical payouts, then shut down.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](file:///c:/dev/go/src/github.com/Rosalita/distributed-lottery-analyser/LICENSE) file for details.

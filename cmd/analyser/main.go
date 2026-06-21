@@ -1,29 +1,57 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/Rosalita/distributed-lottery-analyser/cmd/analyser/internal/coordinator"
 	"github.com/Rosalita/distributed-lottery-analyser/cmd/analyser/internal/data"
+	"github.com/Rosalita/distributed-lottery-analyser/cmd/analyser/internal/evaluator"
+	"github.com/Rosalita/distributed-lottery-analyser/cmd/analyser/internal/worker"
+	analyserPb "github.com/Rosalita/distributed-lottery-analyser/protos/generated/analyser"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
-	fmt.Println("Distributed Lottery Analyzer is starting up...")
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.Println("Distributed Lottery Analyzer is starting up...")
 
-	// The distributed-compute-operator should assign predictable hostnames.
-	// For example: "lottery-job-leader" or "lottery-job-worker-0"
-	hostname, _ := os.Hostname()
+	roleStr := flag.String("role", "", "Role: leader or worker (defaults to auto-detect)")
+	portStr := flag.String("port", "50051", "Leader port to run gRPC server on")
+	leaderAddr := flag.String("leader", "localhost:50051", "Leader address for worker to connect to")
+	gameStr := flag.String("game", "thunderball", "Game name to analyze: lotto, euromillions, thunderball, setforlife")
+	chunkSize := flag.Int64("chunk-size", 100_000, "Solver combinations chunk size distributed to workers")
+	limit := flag.Int("limit", 5, "Number of top-performing tickets to keep")
 
-	// Default to leader if running locally (not inside Kubernetes)
-	isLocal := os.Getenv("KUBERNETES_SERVICE_HOST") == ""
-	isLeader := strings.HasSuffix(hostname, "-leader") || hostname == "" || isLocal
+	flag.Parse()
 
-	if isLeader {
-		fmt.Println("Role: Leader. Initializing data manager...")
+	// Determine role
+	role := *roleStr
+	if role == "" {
+		hostname, _ := os.Hostname()
+		isLocal := os.Getenv("KUBERNETES_SERVICE_HOST") == ""
+		if strings.HasSuffix(hostname, "-leader") || hostname == "" || isLocal {
+			role = "leader"
+		} else {
+			role = "worker"
+		}
+	}
+
+	if role == "leader" {
+		log.Printf("Role: Leader. Game: %s. Chunk size: %d. Top tickets limit: %d", *gameStr, *chunkSize, *limit)
+
+		config, exists := evaluator.GetGameConfig(*gameStr)
+		if !exists {
+			log.Fatalf("Invalid game name: %s", *gameStr)
+		}
 
 		// Navigate locally to the getdrawhistory/data folder
 		_, currentFile, _, _ := runtime.Caller(0)
@@ -31,27 +59,79 @@ func main() {
 
 		allGameData, err := data.LoadAllData(baseDataDir)
 		if err != nil {
-			fmt.Printf("Failed to load game data: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Failed to load historical game data: %v", err)
 		}
-		fmt.Printf("Successfully loaded historical data for %d games.\n", len(allGameData))
 
-		// Look up Thunderball draw 3923 directly
-		if draw, exists := allGameData["thunderball"][3923]; exists {
-			fmt.Println("***")
-			fmt.Printf("Found Draw 3923: %+v\n", draw)
-			fmt.Println("***")
-		} else {
-			fmt.Println("Draw 3923 not found in the dataset.")
+		gameData, exists := allGameData[config.Name]
+		if !exists || len(gameData) == 0 {
+			log.Fatalf("No historical draw details found for game: %s", config.Name)
 		}
+		log.Printf("Successfully loaded %d historical draw details for %s.", len(gameData), config.Name)
+
+		// Instantiate Coordinator (timeout: 30 seconds for chunks)
+		coord := coordinator.NewCoordinator(config, gameData, *chunkSize, *limit, 30*time.Second)
+
+		// Start gRPC server
+		lis, err := net.Listen("tcp", ":"+*portStr)
+		if err != nil {
+			log.Fatalf("Failed to listen on port %s: %v", *portStr, err)
+		}
+
+		grpcServer := grpc.NewServer()
+		analyserPb.RegisterAnalyserServer(grpcServer, coord)
+
+		go func() {
+			log.Printf("Leader gRPC server listening on port %s...", *portStr)
+			if err := grpcServer.Serve(lis); err != nil {
+				log.Fatalf("gRPC server failed: %v", err)
+			}
+		}()
+
+		// Print periodic progress
+		go func() {
+			for {
+				time.Sleep(5 * time.Second)
+				comp, total := coord.Progress()
+				percentage := 0.0
+				if total > 0 {
+					percentage = float64(comp) / float64(total) * 100.0
+				}
+				log.Printf("[Progress] %d of %d chunks completed (%.2f%%)", comp, total, percentage)
+				if coord.AllDone() {
+					break
+				}
+			}
+		}()
+
+		// Block until completion
+		for {
+			time.Sleep(1 * time.Second)
+			if coord.AllDone() {
+				log.Println("All chunks completed successfully!")
+				grpcServer.GracefulStop()
+				break
+			}
+		}
+
+		// Print final results
+		tickets := coord.GetTopTickets()
+		fmt.Println("\n==================================================")
+		fmt.Printf("TOP %d MOST PROFITABLE TICKETS FOR %s\n", len(tickets), strings.ToUpper(config.Name))
+		fmt.Println("==================================================")
+		for idx, t := range tickets {
+			fmt.Printf("%d. Primary: %v, Secondary: %v | Total Earnings: £%.2f\n",
+				idx+1, t.PrimaryNumbers, t.SecondaryNumbers, float64(t.TotalPrizeCents)/100.0)
+		}
+		fmt.Println("==================================================\n")
+
 	} else {
-		fmt.Println("Role: Worker. Waiting for tasks from the leader...")
-	}
+		log.Printf("Role: Worker. Connecting to leader at %s...", *leaderAddr)
 
-	// Block indefinitely to prevent the container from immediately exiting.
-	// We use a sleep loop instead of select{} to avoid Go deadlock panics
-	// before we have implemented our background servers and goroutines.
-	for {
-		time.Sleep(1 * time.Hour)
+		err := worker.RunWorker(*leaderAddr, *limit)
+		if err != nil {
+			log.Fatalf("Worker client encountered error: %v", err)
+		}
+
+		log.Println("Worker completed all work assignments. Exiting.")
 	}
 }

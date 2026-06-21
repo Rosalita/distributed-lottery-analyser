@@ -36,30 +36,28 @@ This application is packaged as a single Docker container but uses its networkin
   - **Masking (`internal/evaluator/masking.go`):** Implemented `SliceToMask` to convert number slices to `uint64` bitmasks.
   - **Evaluator (`internal/evaluator/evaluator.go`):** Implemented `NewFastDraw` (parsing draws to `uint64` bitmasks and a static 2D lookup matrix `[matchPrimary][matchSecondary]`) and `EvaluateRange` (a zero-allocation matching loop using `math/bits.OnesCount64` / CPU `POPCNT` instruction).
   - **Modular Unit Tests:** Created `combinadics_test.go`, `masking_test.go`, and `evaluator_test.go` using a map-based table testing format. Test assertions are strictly non-tautological (utilizing explicit binary literals, e.g., `0b101010`). All tests pass successfully.
+- **gRPC Setup & Code Generation (Stage 2 - Complete & Verified):**
+  - Added gRPC and protobuf dependencies to `go.mod`.
+  - Created protobuf schema `protos/analyser.proto` defining `RegisterWorker`, `GetWork`, and `ReportResult` services.
+  - Added compilation and cleanup targets to `Makefile`.
+  - Compiled the protobuf definition into the `protos/generated/analyser` package.
+- **Leader Coordinator Server (Stage 3 - Complete & Verified):**
+  - Implemented the gRPC service and coordinator in `cmd/analyser/internal/coordinator/leader.go`.
+  - Manages range chunk tasks distribution, worker heartbeat tracking, automatic timeouts, and top tickets merging.
+  - Added unit test cases in `leader_test.go` verifying assignments and re-assignments on timeouts.
+- **Worker Client (Stage 4 - Complete & Verified):**
+  - Implemented the stateless client worker loop in `cmd/analyser/internal/worker/worker.go`.
+  - Registers with leader, parses draw dataset configured from gRPC models, requests tasks, and reports top tickets.
+  - Unit tests in `worker_test.go` mock a leader server and assert complete solver loops.
+- **Main Integration & Verification (Stage 5 - Complete & Verified):**
+  - Updated `cmd/analyser/main.go` with CLI flag parsing (role, leader addresses, chunk sizes, limits) and server/client runs.
+  - Successfully verified end-to-end local solver execution for Thunderball.
 
 ---
 
 ## Approved Plan & Next Stages for Development
 
-The project is being built in small, incremental stages as tracked in the local task checklist (`task.md`).
-
-### Stage 2: gRPC Setup & Code Generation (Next Step)
-- Add gRPC and protobuf dependencies to `go.mod`.
-- Write the protobuf schema `proto/analyser.proto`:
-  - `RegisterWorker`: Worker registers with leader and receives the game configuration plus all historical draw data (to keep the worker stateless and avoid volume mounts).
-  - `GetWork`: Issues range chunks to workers.
-  - `ReportResult`: Workers report the top tickets found within their assigned range.
-- Compile protobuf to Go gRPC client/server code using `protoc`.
-
-### Stage 3: Leader Coordinator Server
-- Implement the coordinator logic on the Leader (`internal/coordinator/leader.go`) to split the combination space into equal ranges, track worker registration, monitor chunk states (Unassigned, InProgress, Completed), handle worker disconnections/retries, and run the gRPC server.
-
-### Stage 4: Worker Client
-- Implement the Worker execution client (`internal/worker/worker.go`) to connect to the leader, request work ranges, run the evaluator core on the range, and report results back.
-
-### Stage 5: Main Integration & Verification
-- Update `cmd/analyser/main.go` to parse CLI flags (role, port, leader address, game name).
-- Perform a local end-to-end integration test of Leader + Worker.
+The next development phase focuses on containerization and cloud coordination:
 
 ### Stage 6: Containerization & Deployment
 - Write the `Dockerfile` for containerizing the application.

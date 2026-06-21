@@ -7,20 +7,20 @@
 - [x] Verify tests pass successfully
 
 ## Stage 2: gRPC Setup & Code Generation
-- [ ] Add gRPC and protobuf dependencies to `go.mod`
-- [ ] Write the gRPC protobuf service definition (`proto/analyser.proto`)
-- [ ] Compile protobuf to Go files using `protoc`
+- [x] Add gRPC and protobuf dependencies to `go.mod`
+- [x] Write the gRPC protobuf service definition (`protos/analyser.proto`)
+- [x] Compile protobuf to Go files using `protoc`
 
 ## Stage 3: Leader Coordinator Server
-- [ ] Implement Leader coordinator logic (`internal/coordinator/leader.go`)
-- [ ] Integrate draw history loading into the coordinator
+- [x] Implement Leader coordinator logic (`cmd/analyser/internal/coordinator/leader.go`)
+- [x] Integrate draw history loading into the coordinator
 
 ## Stage 4: Worker Client
-- [ ] Implement Worker client execution loop (`internal/worker/worker.go`)
+- [x] Implement Worker client execution loop (`cmd/analyser/internal/worker/worker.go`)
 
 ## Stage 5: Main Integration & Verification
-- [ ] Update `cmd/analyser/main.go` with CLI flag parsing and orchestration entrypoints
-- [ ] Verify end-to-end local execution of leader + worker for a game (e.g., Thunderball)
+- [x] Update `cmd/analyser/main.go` with CLI flag parsing and orchestration entrypoints
+- [x] Verify end-to-end local execution of leader + worker for a game (e.g., Thunderball)
 
 ## Stage 6: Containerization & Deployment
 - [ ] Write the `Dockerfile` for containerizing the application
