@@ -239,6 +239,30 @@ func TestSetForLifeRangeEvaluation(t *testing.T) {
 	}
 }
 
+func TestDebugEuroMillionsTicket(t *testing.T) {
+	baseDataDir := "../../../getdrawhistory/data"
+	drawsMap, err := data.LoadGameData("euromillions", baseDataDir)
+	if err != nil {
+		t.Fatalf("Failed to load game data: %v", err)
+	}
+
+	primary := []int{12, 14, 27, 44, 50}
+	secondary := []int{4, 12}
+
+	t.Logf("Checking wins for ticket %+v, %+v", primary, secondary)
+	var totalPence int64
+	for drawNo, d := range drawsMap {
+		matchP, matchS := d.CalculateMatches(primary, secondary)
+		prize := d.GetPrizeForRound(matchP, matchS, "ONE")
+		if prize > 0 {
+			t.Logf("Draw %d: matched %d+%d. Prize: £%.2f (pence: %d)", drawNo, matchP, matchS, float64(prize)/100.0, prize)
+			totalPence += prize
+		}
+	}
+	t.Logf("Total calculated earnings: £%.2f (pence: %d)", float64(totalPence)/100.0, totalPence)
+}
+
+
 
 
 

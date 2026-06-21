@@ -53,6 +53,16 @@ func LoadGameData(gameName, baseDataDir string) (map[int]DrawDetails, error) {
 
 		// Only overlay if the JSON parsed successfully and contains actual draw details
 		if details.DrawResult.DrawNo > 0 && len(details.DrawResult.DrawnNumbers.DrawnNumbers.PrimaryNumbers) > 0 {
+			// Clean up prize levels: ignore raffle levels like UK Millionaire Maker (matching 0+0)
+			var filteredLevels []PrizeLevel
+			for _, lvl := range details.PrizeBreakdown.PrizeLevels {
+				if lvl.MatchBallPrimary == 0 && lvl.MatchBallSecondary == 0 {
+					continue
+				}
+				filteredLevels = append(filteredLevels, lvl)
+			}
+			details.PrizeBreakdown.PrizeLevels = filteredLevels
+
 			draws[details.DrawResult.DrawNo] = details
 		}
 	}
