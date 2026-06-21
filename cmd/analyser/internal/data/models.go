@@ -78,9 +78,20 @@ func (d *DrawDetails) GetPrizeForRound(matchPrimary, matchSecondary int, round s
 		matchRound := level.DrawRound == round || (round == "ONE" && (level.DrawRound == "" || level.DrawRound == "ONE"))
 		if matchRound && level.MatchBallPrimary == matchPrimary && level.MatchBallSecondary == matchSecondary {
 			prize := level.Prize.PrizePence
-			// If it's a jackpot tier and the prize is 0 due to 0 winners, override with top prize jackpot.
-			if prize == 0 && d.isJackpotTier(matchPrimary, matchSecondary) {
-				prize = d.DrawResult.TopPrize.PrizePence
+			if prize == 0 {
+				// Set For Life specific non-cash annuity overrides
+				if d.DrawResult.GameID == 3 {
+					if matchPrimary == 5 && matchSecondary == 1 {
+						return 360000000 // £10k/month for 30 years
+					}
+					if matchPrimary == 5 && matchSecondary == 0 {
+						return 12000000  // £10k/month for 1 year
+					}
+				}
+				// General jackpot tier override
+				if d.isJackpotTier(matchPrimary, matchSecondary) {
+					prize = d.DrawResult.TopPrize.PrizePence
+				}
 			}
 			return prize
 		}

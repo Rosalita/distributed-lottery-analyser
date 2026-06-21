@@ -211,8 +211,8 @@ func getDefaultPrizeLevels(gameName string) []PrizeLevel {
 		addLevel("ONE", 1, 1, 500, "Match 1 + Thunderball")
 		addLevel("ONE", 0, 1, 300, "Match 0 + Thunderball")
 	case "setforlife":
-		addLevel("ONE", 5, 1, 3600000000, "Match 5 + Life Ball")
-		addLevel("ONE", 5, 0, 120000000, "Match 5")
+		addLevel("ONE", 5, 1, 360000000, "Match 5 + Life Ball")
+		addLevel("ONE", 5, 0, 12000000, "Match 5")
 		addLevel("ONE", 4, 1, 25000, "Match 4 + Life Ball")
 		addLevel("ONE", 4, 0, 5000, "Match 4")
 		addLevel("ONE", 3, 1, 3000, "Match 3 + Life Ball")
