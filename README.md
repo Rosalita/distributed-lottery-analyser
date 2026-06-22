@@ -85,6 +85,69 @@ A `Makefile` is provided to simplify common development tasks:
   make clean
   ```
 
+### Benchmarking & Profiling
+
+To measure execution performance and analyze bottlenecks under load:
+
+1. **Run Benchmarks**:
+   To run the benchmark suite and measure CPU times and memory allocation statistics (`B/op` and `allocs/op`):
+   ```bash
+   go test -bench=Benchmark -benchmem ./cmd/analyser/internal/evaluator
+   ```
+   The first time benchmarks were run for this project, they looked like this:
+   ```text
+   BenchmarkEvaluateRange_SetForLife-16                 493           2426196 ns/op          561418 B/op      20039 allocs/op
+   BenchmarkEvaluateRange_Lotto-16                      538           2237489 ns/op          481169 B/op      10018 allocs/op
+   BenchmarkEvaluateRange_Thunderball-16                493           2424654 ns/op          560914 B/op      20021 allocs/op
+   BenchmarkEvaluateRange_EuroMillions-16               478           2451271 ns/op          640672 B/op      20011 allocs/op
+   ```
+   * **First column** (`BenchmarkEvaluateRange_...-16`): The benchmark name. The `-16` indicates the number of CPU threads used (`GOMAXPROCS`).
+   * **Second column** (e.g., `493`): The iteration count (`N`). This is the number of times the benchmark loop was executed within the default time limit (1 second).
+   * **Third column** (e.g., `2426196 ns/op`): The average execution time per iteration in nanoseconds.
+   * **Fourth column** (e.g., `561418 B/op`): The average amount of heap memory allocated per iteration in bytes (`B/op`).
+   * **Fifth column** (e.g., `20039 allocs/op`): The average number of heap allocations per iteration.
+
+2. **Generate Performance Profiles**:
+   To capture CPU and memory profiles for deep inspection
+   ```bash
+  go test -bench=Benchmark -benchmem -cpuprofile=cpu.pprof -memprofile=mem.pprof ./cmd/analyser/internal/evaluator
+   ```
+   
+  Note, if using windows powershell you may need to use space separated arguments as shown below:
+   ```bash
+   go test -bench=Benchmark -benchmem -cpuprofile cpu.pprof -memprofile mem.pprof ./cmd/analyser/internal/evaluator
+   ```
+
+   This will create files named cpu.pprof and mem.pprof in the current directory. A file called evaluator.test.exe will also be created.
+
+3. **Analyze CPU Profiling Hotspots**:
+   To view the most CPU-intensive functions:
+   ```bash
+   go tool pprof -top cpu.pprof
+   ```
+
+4. **Analyze Memory Profiling Data (Allocations)**:
+   To view heap memory allocation statistics and see where allocations are happening:
+   * **Allocated Space** (total bytes allocated, including GC'd memory - best for finding GC overhead):
+     ```bash
+     go tool pprof -alloc_space -top mem.pprof
+     ```
+   * **Allocated Objects** (total number of objects created):
+     ```bash
+     go tool pprof -alloc_objects -top mem.pprof
+     ```
+   * **In-Use Space** (memory currently retained on the heap - best for finding memory leaks):
+     ```bash
+     go tool pprof -inuse_space -top mem.pprof
+     ```
+
+5. **Launch the Interactive Web UI**:
+   To view flame graphs, source code annotations, and visual call graphs in your web browser:
+   ```bash
+   go tool pprof -http=:8080 mem.pprof
+   ```
+   *(Navigate to `http://localhost:8080` in your browser).*
+
 ### Running the Solver Locally
 
 To run the solver engine on your local machine, follow these steps:

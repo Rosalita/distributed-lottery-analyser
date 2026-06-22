@@ -1,0 +1,9 @@
+# Compiled binaries
+bin/
+*.exe
+*.test
+*.test.exe
+
+# Profiling files
+*.pprof
+*.out
