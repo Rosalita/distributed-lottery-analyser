@@ -267,19 +267,31 @@ func main() {
 			continue
 		}
 
-		drawNumbers, err := ExtractDrawNumbers(mainCSV)
+		drawInfos, err := ExtractDrawInfos(mainCSV)
 		if err != nil {
 			fmt.Printf("Error extracting draw numbers for %s: %v\n", g.name, err)
 			continue
 		}
 
-		fmt.Printf("Found %d draws to check for %s.\n", len(drawNumbers), g.name)
+		fmt.Printf("Found %d draws to check for %s.\n", len(drawInfos), g.name)
 
-		for _, drawNo := range drawNumbers {
+		for _, info := range drawInfos {
+			drawNo := info.DrawNumber
 			gameId := g.gameId
 			if g.dir == "lotto" && drawNo < 3179 {
 				gameId = 1
 			}
+
+			// If the JSON details file does not exist locally and the draw date is older than 180 days,
+			// skip it as the API no longer has this draw's details available.
+			filePath := filepath.Join(gameDir, "draw_details", fmt.Sprintf("%s_draw_%d_details.json", g.dir, drawNo))
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				if time.Since(info.DrawDate) > 180*24*time.Hour {
+					totalSkipped++
+					continue
+				}
+			}
+
 			downloaded, err := downloader.FetchDrawDetails(g.dir, gameId, drawNo)
 			if err != nil {
 				fmt.Printf("Error fetching draw details for draw %d (gameId %d): %v\n", drawNo, gameId, err)

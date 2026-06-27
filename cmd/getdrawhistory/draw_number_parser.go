@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
-// ExtractDrawNumbers reads a lottery CSV file and extracts all the DrawNumbers.
-func ExtractDrawNumbers(filePath string) ([]int, error) {
+// DrawInfo stores the draw number and the date it was drawn.
+type DrawInfo struct {
+	DrawNumber int
+	DrawDate   time.Time
+}
+
+// ExtractDrawInfos reads a lottery CSV file and extracts DrawInfos containing DrawNumbers and DrawDates.
+func ExtractDrawInfos(filePath string) ([]DrawInfo, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", filePath, err)
@@ -27,25 +35,45 @@ func ExtractDrawNumbers(filePath string) ([]int, error) {
 
 	headers := records[0]
 	drawNumberIdx := -1
+	drawDateIdx := -1
 	for i, header := range headers {
-		if header == "DrawNumber" {
+		// Clean header: trim UTF-8 BOM, spaces, and compare case-insensitively
+		cleanHeader := strings.TrimPrefix(header, "\xef\xbb\xbf")
+		cleanHeader = strings.TrimPrefix(cleanHeader, "\ufeff")
+		cleanHeader = strings.TrimSpace(cleanHeader)
+		cleanHeader = strings.ToLower(cleanHeader)
+
+		if cleanHeader == "drawnumber" {
 			drawNumberIdx = i
-			break
+		} else if cleanHeader == "drawdate" {
+			drawDateIdx = i
 		}
 	}
 
 	if drawNumberIdx == -1 {
 		return nil, fmt.Errorf("column 'DrawNumber' not found in %s", filePath)
 	}
+	if drawDateIdx == -1 {
+		return nil, fmt.Errorf("column 'DrawDate' not found in %s", filePath)
+	}
 
-	var drawNumbers []int
+	var drawInfos []DrawInfo
 	for _, row := range records[1:] {
 		drawNo, err := strconv.Atoi(row[drawNumberIdx])
 		if err != nil {
 			return nil, fmt.Errorf("invalid draw number '%s': %w", row[drawNumberIdx], err)
 		}
-		drawNumbers = append(drawNumbers, drawNo)
+
+		drawDate, err := time.Parse("02-Jan-2006", row[drawDateIdx])
+		if err != nil {
+			return nil, fmt.Errorf("invalid draw date '%s': %w", row[drawDateIdx], err)
+		}
+
+		drawInfos = append(drawInfos, DrawInfo{
+			DrawNumber: drawNo,
+			DrawDate:   drawDate,
+		})
 	}
 
-	return drawNumbers, nil
+	return drawInfos, nil
 }
