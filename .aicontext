@@ -56,20 +56,19 @@ This application is packaged as a single Docker container but uses its networkin
   - Created a benchmark suite in `evaluator_benchmark_test.go` to measure performance metrics (duration, heap memory, and allocation counts) for all 4 games.
   - Configured test runs to generate CPU/Memory profiles under load, and created a `.gitignore` file to ensure locally generated binary test executables and `.pprof`/`.out` files are not checked into Git.
   - Documented benchmarking, profiling, and pprof analysis instructions in `README.md`.
+- **Profiling & Performance Optimizations (Complete & Verified):**
+  - Analyzed the memory profile using `go tool pprof` and identified that slice allocation and sorting inside the hot loop of `UnrankCombination` created massive GC pressure (using 1.43GB in profiling runs).
+  - Developed `UnrankCombinationToMask` and `UnrankTicketToMasks` to generate `uint64` bitmasks directly from ranks without intermediate slice allocation or sorting.
+  - Modified `EvaluateRange` in `evaluator.go` to compute masks directly, and deferred the allocating `UnrankTicket` calls to only execute when a ticket qualifies to enter the top-tickets leaderboard.
+  - Verified correctness of the optimized masking functions via comprehensive unit tests in `combinadics_test.go`.
+  - Verified memory and allocation improvements using the benchmark suite, achieving a **99.6% reduction in allocations** (from 20,039 to 77 allocs/op for Set For Life), a **99.5% reduction in memory bandwidth** (from 561,418 B/op to 2,480 B/op), and a **39% speedup in execution time**.
+  - Documented optimization findings, strategy, and updated benchmark results in `README.md`.
 
 ---
 
 ## Approved Plan & Next Stages for Development
 
-The next development phase focuses on profiling analysis and implementing performance optimizations:
-
-### Stage 6: Profiling Analysis
-- Run the profiling commands locally to generate `.pprof` files.
-- Inspect the CPU and Memory profiles using `go tool pprof` (including the HTTP Web UI) to identify bottlenecks.
-- Confirm and finalize the optimization approach.
-
-### Stage 7: Verify Performance Optimization
-- Verify performance improvement using the benchmark suite.
+The remaining development phase focuses on containerization and cloud deployment:
 
 ### Stage 8: Containerization & Deployment
 - Write the `Dockerfile` for containerizing the application.
