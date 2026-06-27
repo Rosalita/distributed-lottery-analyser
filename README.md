@@ -143,13 +143,7 @@ To measure execution performance and analyze bottlenecks under load:
    ```bash
    go test -bench=Benchmark -benchmem ./cmd/analyser/internal/evaluator
    ```
-   The first time benchmarks were run for this project, they looked like this:
-   ```text
-   BenchmarkEvaluateRange_SetForLife-16                 493           2426196 ns/op          561418 B/op      20039 allocs/op
-   BenchmarkEvaluateRange_Lotto-16                      538           2237489 ns/op          481169 B/op      10018 allocs/op
-   BenchmarkEvaluateRange_Thunderball-16                493           2424654 ns/op          560914 B/op      20021 allocs/op
-   BenchmarkEvaluateRange_EuroMillions-16               478           2451271 ns/op          640672 B/op      20011 allocs/op
-   ```
+
    * **First column** (`BenchmarkEvaluateRange_...-16`): The benchmark name. The `-16` indicates the number of CPU threads used (`GOMAXPROCS`).
    * **Second column** (e.g., `493`): The iteration count (`N`). This is the number of times the benchmark loop was executed within the default time limit (1 second).
    * **Third column** (e.g., `2426196 ns/op`): The average execution time per iteration in nanoseconds.
@@ -196,6 +190,38 @@ To measure execution performance and analyze bottlenecks under load:
    go tool pprof -http=:8080 mem.pprof
    ```
    *(Navigate to `http://localhost:8080` in your browser).*
+
+## Optimisation Strategy and Results
+
+The initial benchmark results for this project were as follows:
+
+```text
+BenchmarkEvaluateRange_SetForLife-16                 493           2426196 ns/op          561418 B/op      20039 allocs/op
+BenchmarkEvaluateRange_Lotto-16                      538           2237489 ns/op          481169 B/op      10018 allocs/op
+BenchmarkEvaluateRange_Thunderball-16                493           2424654 ns/op          560914 B/op      20021 allocs/op
+BenchmarkEvaluateRange_EuroMillions-16               478           2451271 ns/op          640672 B/op      20011 allocs/op
+```
+
+Pprof showed that the `UnrankCombination` function in `combinadics.go` was using 1.43GB memory for
+```golang
+combination := make([]int, k)
+```
+A new function `UnrankCombinationToMask` was created and this function intentionally avoided allocating the memory to create a slice, instead favouring to generate the required bitmask as output. Tests were added to verify that the bitmask created was the same for both functions.
+
+After switching from `UnrankTicket` to `UnrankTicketToMasks` and changing the way that winning tickets were handled (only generating the slice of ticket numbers when those tickets qualified for the leaderboard), the benchmarks were run again.
+
+```text
+BenchmarkEvaluateRange_SetForLife-16                 793           1479560 ns/op            2480 B/op         77 allocs/op
+BenchmarkEvaluateRange_Lotto-16                      750           1597748 ns/op            1984 B/op         35 allocs/op
+BenchmarkEvaluateRange_Thunderball-16                807           1462175 ns/op            1472 B/op         41 allocs/op
+BenchmarkEvaluateRange_EuroMillions-16               801           1468501 ns/op             992 B/op         21 allocs/op
+```
+Looking again at pprof, by only generating slices for winning tickets that qualify for the leaderboard, the memory used for slice allocation was reduced from 1.43GB to 89.50MB.
+
+Looking at how this single change affected the "set for life" draw
+* Allocations dropped from 20,039 allocs/op to 77 allocs/op, a reduction of 99.6%
+* Memory per draw dropped from 561,418 B/op to 2,480 B/op, a reduction of 99.5%
+* Execution speed improved from 2.42 ms/op to 1.47 ms/op, an improvement of 39%
 
 ## License
 

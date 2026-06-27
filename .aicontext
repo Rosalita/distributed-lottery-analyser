@@ -56,7 +56,6 @@ This application is packaged as a single Docker container but uses its networkin
   - Created a benchmark suite in `evaluator_benchmark_test.go` to measure performance metrics (duration, heap memory, and allocation counts) for all 4 games.
   - Configured test runs to generate CPU/Memory profiles under load, and created a `.gitignore` file to ensure locally generated binary test executables and `.pprof`/`.out` files are not checked into Git.
   - Documented benchmarking, profiling, and pprof analysis instructions in `README.md`.
-  - Authored a preliminary `implementation_plan.md` to outline potential optimization paths once analysis is finalized.
 
 ---
 
@@ -69,9 +68,7 @@ The next development phase focuses on profiling analysis and implementing perfor
 - Inspect the CPU and Memory profiles using `go tool pprof` (including the HTTP Web UI) to identify bottlenecks.
 - Confirm and finalize the optimization approach.
 
-### Stage 7: Performance Optimization Execution
-- Implement allocation-free unranking directly to bitmasks.
-- Defer leaderboard slice allocations in `EvaluateRange`.
+### Stage 7: Verify Performance Optimization
 - Verify performance improvement using the benchmark suite.
 
 ### Stage 8: Containerization & Deployment

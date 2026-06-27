@@ -71,6 +71,28 @@ func TestUnrankCombination(t *testing.T) {
 	}
 }
 
+func TestUnrankCombinationToMask(t *testing.T) {
+	t.Run("compare with SliceToMask", func(t *testing.T) {
+		// Let's test 1000 ranks for a typical game config (e.g., 39 choose 5)
+		n := 39
+		k := 5
+		for rank := int64(0); rank < 1000; rank++ {
+			// 1. Get the slice combination using the trusted original function
+			comb := UnrankCombination(rank, n, k)
+
+			// 2. Convert the slice combination to a bitmask using the trusted SliceToMask
+			expectedMask := SliceToMask(comb)
+
+			// 3. Get the bitmask directly using the new optimized function
+			gotMask := UnrankCombinationToMask(rank, n, k)
+
+			if gotMask != expectedMask {
+				t.Errorf("Rank %d: expected mask %064b, got %064b", rank, expectedMask, gotMask)
+			}
+		}
+	})
+}
+
 func TestUnrankTicket(t *testing.T) {
 	tests := map[string]struct {
 		rank                   int64
@@ -92,4 +114,33 @@ func TestUnrankTicket(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnrankTicketToMasks(t *testing.T) {
+	t.Run("compare with SliceToMask for all configs", func(t *testing.T) {
+		configs := []GameConfig{
+			ThunderballConfig,
+			LottoConfig,
+			SetForLifeConfig,
+			EuroMillionsConfig,
+		}
+		for _, config := range configs {
+			for rank := int64(0); rank < 500; rank++ {
+				// 1. Get slices using original UnrankTicket
+				pSlice, sSlice := UnrankTicket(rank, config)
+
+				// 2. Convert slices to expected masks
+				expectedPMask := SliceToMask(pSlice)
+				expectedSMask := SliceToMask(sSlice)
+
+				// 3. Get masks directly using new function
+				gotPMask, gotSMask := UnrankTicketToMasks(rank, config)
+
+				if gotPMask != expectedPMask || gotSMask != expectedSMask {
+					t.Errorf("Game %s, Rank %d: expected masks (P:%b, S:%b), got (P:%b, S:%b)",
+						config.Name, rank, expectedPMask, expectedSMask, gotPMask, gotSMask)
+				}
+			}
+		}
+	})
 }

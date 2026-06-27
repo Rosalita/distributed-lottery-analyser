@@ -174,12 +174,7 @@ func EvaluateRange(startRank, endRank int64, config GameConfig, draws []FastDraw
 	isLotto := config.Name == "lotto"
 
 	for rank := startRank; rank < endRank; rank++ {
-		primarySlice, secondarySlice := UnrankTicket(rank, config)
-		primaryMask := SliceToMask(primarySlice)
-		var secondaryMask uint64
-		if len(secondarySlice) > 0 {
-			secondaryMask = SliceToMask(secondarySlice)
-		}
+		primaryMask, secondaryMask := UnrankTicketToMasks(rank, config)
 
 		var totalPrize int64
 		for i := range draws {
@@ -213,7 +208,10 @@ func EvaluateRange(startRank, endRank int64, config GameConfig, draws []FastDraw
 			}
 		}
 
-		if totalPrize > 0 {
+		if totalPrize > 0 && (len(tt.Tickets) < tt.Limit || totalPrize > tt.Tickets[len(tt.Tickets)-1].TotalPrizePence) {
+			// Generate the slice of numbers for the rank to add to the top tickets.
+			// Note that this is only done for winning tickets that qualify for the leaderboard to save time and memory.
+			primarySlice, secondarySlice := UnrankTicket(rank, config)
 			tt.Add(totalPrize, primarySlice, secondarySlice)
 		}
 	}

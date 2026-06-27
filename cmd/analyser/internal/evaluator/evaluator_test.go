@@ -20,25 +20,25 @@ func TestEvaluateRange(t *testing.T) {
 		expectedPrize    int64
 	}{
 		"lotto match 6": {
-			config:           LottoConfig,
-			drawNumbers:      []int{1, 2, 3, 4, 5, 6},
-			drawSecondary:    []int{7},
-			rank:             0, // Rank 0 maps to [1, 2, 3, 4, 5, 6]
-			expectedTicketP:  []int{1, 2, 3, 4, 5, 6},
-			expectedTicketS:  nil,
-			expectedPrize:    1000000,
+			config:          LottoConfig,
+			drawNumbers:     []int{1, 2, 3, 4, 5, 6},
+			drawSecondary:   []int{7},
+			rank:            0, // Rank 0 maps to [1, 2, 3, 4, 5, 6]
+			expectedTicketP: []int{1, 2, 3, 4, 5, 6},
+			expectedTicketS: nil,
+			expectedPrize:   1000000,
 		},
 		"lotto match 4 + bonus": {
 			// Player ticket [1, 2, 3, 4, 5, 6] matches primary 1, 2, 3, 4 and bonus 6.
 			// Because matchPrimary is 4 (not 5), bonus ball matching should not affect the tier,
 			// and it should correctly receive the Match 4 prize.
-			config:           LottoConfig,
-			drawNumbers:      []int{1, 2, 3, 4, 10, 11},
-			drawSecondary:    []int{6},
-			rank:             0,
-			expectedTicketP:  []int{1, 2, 3, 4, 5, 6},
-			expectedTicketS:  nil,
-			expectedPrize:    14000,
+			config:          LottoConfig,
+			drawNumbers:     []int{1, 2, 3, 4, 10, 11},
+			drawSecondary:   []int{6},
+			rank:            0,
+			expectedTicketP: []int{1, 2, 3, 4, 5, 6},
+			expectedTicketS: nil,
+			expectedPrize:   14000,
 		},
 		"lotto two round": {
 			// Player ticket [1, 2, 3, 4, 5, 6] matches:
@@ -261,8 +261,3 @@ func TestDebugEuroMillionsTicket(t *testing.T) {
 	}
 	t.Logf("Total calculated earnings: £%.2f (pence: %d)", float64(totalPence)/100.0, totalPence)
 }
-
-
-
-
-
