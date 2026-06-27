@@ -7,3 +7,7 @@ bin/
 # Profiling files
 *.pprof
 *.out
+
+# VS Code settings
+.vscode/
+
