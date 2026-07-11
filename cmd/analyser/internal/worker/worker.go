@@ -36,9 +36,18 @@ func RunWorker(leaderAddr string, limit int) error {
 	ctx := context.Background()
 
 	log.Printf("Registering worker with leader...")
-	regResp, err := client.RegisterWorker(ctx, &analyserPb.RegisterWorkerRequest{WorkerId: workerID})
+	var regResp *analyserPb.RegisterWorkerResponse
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		regResp, err = client.RegisterWorker(ctx, &analyserPb.RegisterWorkerRequest{WorkerId: workerID})
+		if err == nil {
+			break
+		}
+		log.Printf("Registration attempt %d/%d failed: %v. Retrying in 1s...", attempt, maxRetries, err)
+		time.Sleep(1 * time.Second)
+	}
 	if err != nil {
-		return fmt.Errorf("registration failed: %w", err)
+		return fmt.Errorf("registration failed after %d attempts: %w", maxRetries, err)
 	}
 
 	pbConfig := regResp.GetGameConfig()

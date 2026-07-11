@@ -31,6 +31,7 @@ func main() {
 	gameStr := flag.String("game", "thunderball", "Game name to analyze: lotto, euromillions, thunderball, setforlife")
 	chunkSize := flag.Int64("chunk-size", 100_000, "Solver combinations chunk size distributed to workers")
 	limit := flag.Int("limit", 5, "Number of top-performing tickets to keep")
+	dataDir := flag.String("data-dir", "", "Base directory containing historical draw data. If empty, falls back to source-relative path.")
 
 	flag.Parse()
 
@@ -54,9 +55,14 @@ func main() {
 			log.Fatalf("Invalid game name: %s", *gameStr)
 		}
 
-		// Navigate locally to the getdrawhistory/data folder
-		_, currentFile, _, _ := runtime.Caller(0)
-		baseDataDir := filepath.Join(filepath.Dir(currentFile), "..", "getdrawhistory", "data")
+		var baseDataDir string
+		if *dataDir != "" {
+			baseDataDir = *dataDir
+		} else {
+			// Navigate locally to the getdrawhistory/data folder
+			_, currentFile, _, _ := runtime.Caller(0)
+			baseDataDir = filepath.Join(filepath.Dir(currentFile), "..", "getdrawhistory", "data")
+		}
 
 		allGameData, err := data.LoadAllData(baseDataDir)
 		if err != nil {

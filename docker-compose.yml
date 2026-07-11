@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # The Leader Coordinator Service
+  leader:
+    # Build using the Dockerfile in the current directory
+    build: .
+    # Configure the leader parameters.
+    # Note that we use --data-dir=/app/data to load the draws from our volume.
+    command: [
+      "--role=leader",
+      "--game=thunderball",
+      "--chunk-size=2000000",
+      "--limit=5",
+      "--data-dir=/app/data"
+    ]
+    # Map container gRPC port 50051 to host port 50051
+    ports:
+      - "50051:50051"
+    # Bind mount the host's historical data directory into the container.
+    # Any local updates to data on your host will instantly show up in the leader container.
+    volumes:
+      - ./cmd/getdrawhistory/data:/app/data
+
+  # The Worker Computation Service
+  worker:
+    build: .
+    # Automatically restart the worker if it exits (e.g. if the leader is still booting)
+    restart: on-failure
+    # Point the worker to the 'leader' service name.
+    command: [
+      "--role=worker",
+      "--leader=leader:50051",
+      "--limit=5"
+    ]
+    # Ensure the leader service is started before the worker connects
+    depends_on:
+      - leader

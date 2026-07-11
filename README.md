@@ -28,6 +28,9 @@ To update the local dataset, run the following command from the root of the repo
 go run ./cmd/getdrawhistory
 ```
 
+Options:
+- `--data-dir`: Custom base directory to download historical draw data into. If not provided, falls back to source-relative `data` path.
+
 ## Brute-Force Solver Engine
 
 To find the most profitable ticket combination, the analyser uses two key mathematical and performance techniques:
@@ -123,6 +126,7 @@ Leader options:
 - `--chunk-size`: Size of combinadic range chunks distributed to workers. Default is `100,000`.
 - `--limit`: Number of top ticket combinations to compile. Default is `5`.
 - `--port`: The port to run the gRPC server on. Default is `50051`.
+- `--data-dir`: Base directory containing historical draw data. If not provided, falls back to source-relative path.
 
 #### 3. Start a Worker Client
 In a new terminal window, start a worker process to connect and execute chunk tasks:
@@ -133,6 +137,44 @@ Worker options:
 - `--leader`: Address of the leader coordinator. Default is `localhost:50051`.
 
 Once all chunk ranges have been evaluated by workers, the worker process will exit gracefully. The leader will output the top tickets and their historical payouts, then shut down.
+
+### Running with Docker & Docker Compose
+
+A multi-stage `Dockerfile` and a `docker-compose.yml` configuration are provided to run the distributed leader-worker architecture containerized.
+
+#### 1. Build and Run the Leader & Worker
+
+To start both the Leader gRPC server and a Worker client automatically, execute the following from the root of the repository. The first time will need --build and might take a while as it's building the image from scratch:
+```bash
+docker compose up --build
+```
+
+The Leader will boot up and load historical draws from the host's directory (via a bind mount). The Worker will then connect, request ranges to evaluate, and compute them. Once finished, the Leader outputs the results and terminates.
+
+#### 2. Scaling Worker Count
+
+Since workers are stateless, you can scale them horizontally to speed up evaluations. Start the setup with multiple worker containers:
+```bash
+docker compose up --scale worker=3
+```
+This boots 1 Leader and 3 parallel Workers.
+
+#### 3. Manual Container Execution
+
+You can also run the built Docker images manually:
+
+* **Build the Docker Image**:
+  ```bash
+  docker build -t lottery-analyser:latest .
+  ```
+* **Run Leader Coordinator**:
+  ```bash
+  docker run -p 50051:50051 -v ./cmd/getdrawhistory/data:/app/data lottery-analyser:latest --role=leader --game=thunderball --data-dir=/app/data
+  ```
+* **Run Worker Client**:
+  ```bash
+  docker run --network="host" lottery-analyser:latest --role=worker --leader=localhost:50051
+  ```
 
 ### Benchmarking & Profiling
 

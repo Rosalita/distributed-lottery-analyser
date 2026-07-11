@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,15 +18,17 @@ import (
 
 // DrawHistoryDownloader is responsible for downloading lottery data and updating the main CSV files.
 type DrawHistoryDownloader struct {
-	client *http.Client
+	client      *http.Client
+	baseDataDir string
 }
 
 // NewDrawHistoryDownloader creates a new instance of the data DrawHistoryDownloader.
-func NewDrawHistoryDownloader() *DrawHistoryDownloader {
+func NewDrawHistoryDownloader(baseDataDir string) *DrawHistoryDownloader {
 	return &DrawHistoryDownloader{
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		baseDataDir: baseDataDir,
 	}
 }
 
@@ -88,8 +91,7 @@ func (d *DrawHistoryDownloader) downloadGameCSV(gameName, url string) ([]byte, e
 // mergeGameCSV handles downloading, merging, and saving the main CSV for a game.
 func (d *DrawHistoryDownloader) mergeGameCSV(gameName, dirName, url, filename string) error {
 	// Define the path for the main CSV file.
-	_, currentFile, _, _ := runtime.Caller(0)
-	dirPath := filepath.Join(filepath.Dir(currentFile), "data", dirName)
+	dirPath := filepath.Join(d.baseDataDir, dirName)
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return fmt.Errorf("failed to create data directory %s: %w", dirPath, err)
 	}
@@ -184,8 +186,7 @@ func (d *DrawHistoryDownloader) mergeGameCSV(gameName, dirName, url, filename st
 // FetchDrawDetails downloads the detailed results JSON for a specific draw.
 func (d *DrawHistoryDownloader) FetchDrawDetails(gameSlug string, gameId int, drawNo int) (bool, error) {
 	// Dynamically get the directory of this script to safely build the data path
-	_, currentFile, _, _ := runtime.Caller(0)
-	dirPath := filepath.Join(filepath.Dir(currentFile), "data", gameSlug, "draw_details")
+	dirPath := filepath.Join(d.baseDataDir, gameSlug, "draw_details")
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return false, fmt.Errorf("failed to create data directory %s: %w", dirPath, err)
 	}
@@ -230,8 +231,20 @@ func (d *DrawHistoryDownloader) FetchDrawDetails(gameSlug string, gameId int, dr
 }
 
 func main() {
+	dataDir := flag.String("data-dir", "", "Base directory containing historical draw data. If empty, falls back to source-relative path.")
+	flag.Parse()
+
+	var baseDataDir string
+	if *dataDir != "" {
+		baseDataDir = *dataDir
+	} else {
+		// Dynamically get the directory of this script to safely build the data path
+		_, currentFile, _, _ := runtime.Caller(0)
+		baseDataDir = filepath.Join(filepath.Dir(currentFile), "data")
+	}
+
 	fmt.Println("Starting manual data update for all lottery games...")
-	downloader := NewDrawHistoryDownloader()
+	downloader := NewDrawHistoryDownloader(baseDataDir)
 	if err := downloader.DownloadLatestDrawHistories(); err != nil {
 		fmt.Printf("Error updating data: %v\n", err)
 	} else {
@@ -258,8 +271,7 @@ func main() {
 	for _, g := range games {
 		fmt.Printf("\nProcessing %s...\n", g.name)
 
-		_, currentFile, _, _ := runtime.Caller(0)
-		gameDir := filepath.Join(filepath.Dir(currentFile), "data", g.dir)
+		gameDir := filepath.Join(baseDataDir, g.dir)
 		mainCSV := filepath.Join(gameDir, g.filename)
 
 		if _, err := os.Stat(mainCSV); os.IsNotExist(err) {
