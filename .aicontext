@@ -70,11 +70,17 @@ This application is packaged as a single Docker container but uses its networkin
   - Wrote a `docker-compose.yml` configuration orchestrating a leader coordinator (bind-mounting historical host data) and auto-restarting worker containers (`restart: on-failure`).
   - Documented container commands, compose usage, worker scaling, and manual Docker runs in `README.md`.
 
+- **Kubernetes Operator & CRD Integration (Stage 8 - Complete & Verified):**
+  - Updated `cmd/analyser/main.go` to support automated cluster DNS resolution for leader (`<job-name>-leader.<job-name>-svc:<port>`) based on worker pod hostname when running inside Kubernetes without explicit `--leader` overrides.
+  - Added container fallback for `--data-dir` to `/app/data`.
+  - Created ready-to-deploy `DistributedJob` custom resource manifests in `deploy/` for all 4 games:
+    - `deploy/distributedjob-thunderball.yaml` (Thunderball, 4 workers)
+    - `deploy/distributedjob-lotto.yaml` (Lotto, 4 workers)
+    - `deploy/distributedjob-setforlife.yaml` (Set For Life, 4 workers)
+    - `deploy/distributedjob-euromillions.yaml` (EuroMillions, 8 workers)
+  - Updated `README.md` with comprehensive documentation on starting a local Kubernetes cluster using Docker (Docker Desktop, KinD, Minikube), building and loading container images, installing the operator CRD, launching `DistributedJob` instances, following live leader logs, and resource cleanup.
+
 ---
 
-## Approved Plan & Next Stages for Development
-
-The remaining development phase focuses on Kubernetes deployment:
-
-### Stage 8: Kubernetes operator deployment
-- Create the Kubernetes `DistributedJob` custom resource YAML to deploy the solver to the Kubernetes cluster using the `distributed-compute-operator` (https://github.com/Rosalita/distributed-compute-operator).
+## Project Status: Complete
+All planned development stages (Data Gathering, Evaluator Core & Masking, gRPC Schema & Codegen, Coordinator Leader, Worker Client, Integration, Benchmarking & Profiling, Containerization, and Kubernetes Operator CRD Deployment) are now fully implemented, optimized, and documented.

@@ -1,0 +1,12 @@
+apiVersion: hpc.rosalita.github.io/v1
+kind: DistributedJob
+metadata:
+  name: lottery-euromillions
+spec:
+  workerReplicas: 8
+  image: lottery-analyser:latest
+  command:
+    - "/app/analyser"
+    - "--game=euromillions"
+    - "--chunk-size=10000000"
+    - "--limit=5"

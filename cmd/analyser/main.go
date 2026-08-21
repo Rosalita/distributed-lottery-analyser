@@ -58,6 +58,8 @@ func main() {
 		var baseDataDir string
 		if *dataDir != "" {
 			baseDataDir = *dataDir
+		} else if stat, err := os.Stat("/app/data"); err == nil && stat.IsDir() {
+			baseDataDir = "/app/data"
 		} else {
 			// Navigate locally to the getdrawhistory/data folder
 			_, currentFile, _, _ := runtime.Caller(0)
@@ -132,15 +134,38 @@ func main() {
 		fmt.Println("==================================================")
 
 	} else {
-		log.Printf("Role: Worker. Connecting to leader at %s...", *leaderAddr)
+		targetLeader := *leaderAddr
+		// If running in Kubernetes and leader address was not explicitly overridden
+		if !isFlagPassed("leader") && os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+			hostname, _ := os.Hostname()
+			if idx := strings.LastIndex(hostname, "-worker-"); idx != -1 {
+				jobName := hostname[:idx]
+				targetLeader = fmt.Sprintf("%s-leader.%s-svc:%s", jobName, jobName, *portStr)
+			} else if strings.HasSuffix(hostname, "-worker") {
+				jobName := strings.TrimSuffix(hostname, "-worker")
+				targetLeader = fmt.Sprintf("%s-leader.%s-svc:%s", jobName, jobName, *portStr)
+			}
+		}
 
-		err := worker.RunWorker(*leaderAddr, *limit)
+		log.Printf("Role: Worker. Connecting to leader at %s...", targetLeader)
+
+		err := worker.RunWorker(targetLeader, *limit)
 		if err != nil {
 			log.Fatalf("Worker client encountered error: %v", err)
 		}
 
 		log.Println("Worker completed all work assignments. Exiting.")
 	}
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 func formatPence(pence int64) string {

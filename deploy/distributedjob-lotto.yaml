@@ -1,0 +1,12 @@
+apiVersion: hpc.rosalita.github.io/v1
+kind: DistributedJob
+metadata:
+  name: lottery-lotto
+spec:
+  workerReplicas: 4
+  image: lottery-analyser:latest
+  command:
+    - "/app/analyser"
+    - "--game=lotto"
+    - "--chunk-size=5000000"
+    - "--limit=5"

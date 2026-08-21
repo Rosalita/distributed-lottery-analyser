@@ -176,6 +176,149 @@ You can also run the built Docker images manually:
   docker run --network="host" lottery-analyser:latest --role=worker --leader=localhost:50051
   ```
 
+---
+
+### Kubernetes Deployment with Custom Resource Definition (`DistributedJob`)
+
+This application is designed to be orchestrated natively in Kubernetes using the custom [`distributed-compute-operator`](https://github.com/Rosalita/distributed-compute-operator) (`DistributedJob` Custom Resource).
+
+When a `DistributedJob` resource is created:
+1. The operator automatically provisions a **Headless Service** (`<job-name>-svc`) enabling direct pod-to-pod DNS without load-balancing.
+2. The operator creates a **Leader Pod** (`<job-name>-leader`) which loads historical lottery data into memory and exposes the gRPC coordinator service.
+3. The operator spins up $N$ **Worker Pods** (`<job-name>-worker-0`, `<job-name>-worker-1`, ...) which automatically discover the leader via `<job-name>-leader.<job-name>-svc:50051`, evaluate combination chunks in parallel, and report top tickets back to the leader.
+
+#### 1. Start a Local Kubernetes Cluster with Docker
+
+You can use any local Kubernetes cluster backed by Docker:
+
+* **Option A: Docker Desktop (Recommended on Windows/macOS)**:
+  1. Open **Docker Desktop Settings** -> **Kubernetes**.
+  2. Check **Enable Kubernetes** and click **Apply & Restart**.
+  3. Ensure your context is set: `kubectl config use-context docker-desktop`
+
+* **Option B: KinD (Kubernetes in Docker)**:
+  ```bash
+  kind create cluster --name lottery-cluster
+  ```
+
+* **Option C: Minikube**:
+  ```bash
+  minikube start --driver=docker
+  ```
+
+#### 2. Build and Load the Container Image
+
+Build the `lottery-analyser` Docker image locally:
+```bash
+docker build -t lottery-analyser:latest .
+```
+
+If you are using **KinD** or **Minikube**, load the locally-built image into the cluster nodes:
+```bash
+# For KinD:
+kind load docker-image lottery-analyser:latest --name lottery-cluster
+
+# For Minikube:
+minikube image load lottery-analyser:latest
+```
+*(Note: If using Docker Desktop Kubernetes, local Docker images are already directly available to the cluster).*
+
+#### 3. Install the Operator CRD & Start the Controller Manager
+
+The `DistributedJob` custom resource is orchestrated by the [`distributed-compute-operator`](https://github.com/Rosalita/distributed-compute-operator). The operator controller manager must be actively running to reconcile `DistributedJob` manifests and automatically provision the Leader Pod, Worker Pods, and Headless Service.
+
+From your local clone of [`distributed-compute-operator`](https://github.com/Rosalita/distributed-compute-operator):
+
+1. **Install the Custom Resource Definition (CRD)**:
+   ```bash
+   kubectl apply -k config/crd
+   ```
+   Verify CRD installation:
+   ```bash
+   kubectl get crds
+   # You should see: distributedjobs.hpc.rosalita.github.io
+   ```
+
+2. **Start the Controller Manager**:
+   
+   - **Option A (Local Development - Recommended for testing)**: Keep the controller running in a **separate terminal window**:
+     ```bash
+     go run ./cmd/main.go
+     ```
+   
+   - **Option B (In-Cluster Deployment - Production style)**: Build and deploy the operator directly into your Kubernetes cluster:
+     ```bash
+     make deploy
+     ```
+
+> [!IMPORTANT]
+> The controller manager must remain running while jobs are active. If the controller is not running when you apply a `DistributedJob`, Kubernetes will store the resource definition but will not create any Pods or Services.
+
+#### 4. Deploy a `DistributedJob`
+
+Deploy one of the ready-to-use sample manifests from the `deploy/` directory:
+
+```bash
+# Deploy Thunderball Analysis (4 workers)
+kubectl apply -f deploy/distributedjob-thunderball.yaml
+
+# Or Lotto (4 workers)
+kubectl apply -f deploy/distributedjob-lotto.yaml
+
+# Or Set For Life (4 workers)
+kubectl apply -f deploy/distributedjob-setforlife.yaml
+
+# Or EuroMillions (8 workers)
+kubectl apply -f deploy/distributedjob-euromillions.yaml
+```
+
+#### 5. Monitor Job Progress & View Results
+
+Check the custom resource status:
+```bash
+kubectl get distributedjobs
+```
+Output:
+```text
+NAME                  PHASE     WORKERS   ACTIVE   AGE
+lottery-thunderball   Running   4         4        15s
+```
+
+Check the pods and headless service created by the operator:
+```bash
+kubectl get pods
+kubectl get svc
+```
+
+Stream the Leader logs in real time to monitor progress percentages and view the final top winning combinations:
+```bash
+kubectl logs -f lottery-thunderball-leader -c compute
+```
+
+Example output:
+```text
+[Progress] 4 of 5 chunks completed (80.00%)
+[Progress] 5 of 5 chunks completed (100.00%)
+All chunks completed successfully!
+
+==================================================
+TOP 5 MOST PROFITABLE TICKETS FOR THUNDERBALL
+==================================================
+1. Primary: [12 18 24 31 38], Secondary: [9] | Total Earnings: £500,240.00
+2. Primary: [4 11 19 28 35], Secondary: [3] | Total Earnings: £500,180.00
+...
+==================================================
+```
+
+#### 6. Clean Up
+
+Deleting the `DistributedJob` automatically tears down the leader pod, all worker pods, and the headless service:
+```bash
+kubectl delete -f deploy/distributedjob-thunderball.yaml
+```
+
+---
+
 ### Benchmarking & Profiling
 
 To measure execution performance and analyze bottlenecks under load:

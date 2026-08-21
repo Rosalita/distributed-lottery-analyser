@@ -1,0 +1,12 @@
+apiVersion: hpc.rosalita.github.io/v1
+kind: DistributedJob
+metadata:
+  name: lottery-thunderball
+spec:
+  workerReplicas: 4
+  image: lottery-analyser:latest
+  command:
+    - "/app/analyser"
+    - "--game=thunderball"
+    - "--chunk-size=2000000"
+    - "--limit=5"
